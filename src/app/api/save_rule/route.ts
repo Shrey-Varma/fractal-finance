@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { validateRule } from "@/lib/validator";
-import { saveRuleToDB } from "@/lib/dbClient";
+import { validateRule } from "@/utils/validator";
+import { saveRuleToDB } from "@/utils/dbClient";
 
 export async function POST(req: NextRequest) {
   const { user_id, rule } = await req.json();
