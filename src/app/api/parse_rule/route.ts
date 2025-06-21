@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parseRuleText } from "@/lib/gptParser";
-import { validateRule } from "@/lib/validator";
+import { parseRuleText } from "@/utils/gptParser";
+import { validateRule } from "@/utils/validator";
 
 export async function POST(req: NextRequest) {
   const { text } = await req.json();
