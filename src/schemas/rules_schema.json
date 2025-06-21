@@ -12,7 +12,12 @@
           "type": "string",
           "enum": ["new_transaction", "income_received", "monthly_timer"]
         },
-        "account": { "type": "string" },
+        "account": {
+          "oneOf": [
+            { "type": "string", "enum": ["Any", "All"] },
+            { "type": "string", "pattern": "^[A-Z][a-z]*$" }
+          ]
+        },
         "day_of_month": { "type": "number", "minimum": 1, "maximum": 31 }
       },
       "additionalProperties": false
@@ -29,11 +34,25 @@
     },
     "action": {
       "type": "object",
-      "required": ["type"],
+      "required": ["type", "from_account"],
       "properties": {
         "type": {
           "type": "string",
           "enum": ["transfer", "notify", "save"]
+        },
+        "from_account": {
+          "type": "string",
+          "oneOf": [
+            { "enum": ["Any", "All"] },
+            { "pattern": "^[A-Z][a-z]*$" }
+          ]
+        },
+        "to_account": {
+          "type": "string",
+          "oneOf": [
+            { "enum": ["Any", "All"] },
+            { "pattern": "^[A-Z][a-z]*$" }
+          ]
         },
         "dollar_amount": { "type": "number", "minimum": 0 },
         "percent_amount": { "type": "number", "minimum": 0, "maximum": 100 },
@@ -41,6 +60,16 @@
         "goal_name": { "type": "string" },
         "message": { "type": "string" }
       },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "transfer" } } },
+          "then": { "required": ["to_account"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "notify" } } },
+          "then": { "not": { "required": ["to_account"] } }
+        }
+      ],
       "additionalProperties": false
     }
   },

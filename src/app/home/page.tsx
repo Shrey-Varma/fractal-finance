@@ -14,7 +14,7 @@ export default function Home() {
     setResponse(null);
 
     try {
-      const res = await fetch("/api/parse-rule", {
+      const res = await fetch("/api/parse_rule", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text })
@@ -33,7 +33,7 @@ export default function Home() {
 
   return (
     <main className="p-8 max-w-xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">FlowFin: Finance Automation</h1>
+      <h1 className="text-2xl font-bold mb-4">Fractal - Personal Finance Automation</h1>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}

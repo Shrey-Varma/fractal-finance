@@ -6,7 +6,7 @@ import path from "path";
 
 // Load schema field enums and parameters
 function loadSchemaDetails() {
-  const schemaPath = path.resolve("schemas/rule_schema.json");
+  const schemaPath = path.resolve("src/schemas/rules_schema.json");
   const schema = JSON.parse(fs.readFileSync(schemaPath, "utf-8"));
 
   const triggerTypes = schema.properties.trigger.properties.type.enum;
@@ -50,7 +50,7 @@ You are a financial automation assistant. Convert user input into a JSON rule th
 {
   "trigger": {
     "type": "...",
-    "account": "...",
+    "account": "Any | All | <SpecificAccount>",
     "day_of_month": optional
   },
   "criteria": optional {
@@ -61,6 +61,8 @@ You are a financial automation assistant. Convert user input into a JSON rule th
   },
   "action": {
     "type": "...",
+    "from_account": "Any | All | <SpecificAccount>" (required),
+    "to_account": "Any | All | <SpecificAccount>" (required for transfer, do not include for notify),
     "dollar_amount": optional,
     "percent_amount": optional,
     "destination": optional,
@@ -73,6 +75,10 @@ Use ONLY the following values and fields:
 
 Triggers: ${JSON.stringify(triggerTypes)}
 Trigger fields: ${JSON.stringify(triggerFields)}
+
+For the 'from_account' and 'to_account' fields, use either "Any", "All", or a specific account name as a string where the first letter is uppercase and the rest are lowercase (e.g., "Chequing").
+- 'from_account' is always required.
+- 'to_account' is required for transfers, do not include for notifications.
 
 Criteria fields: ${JSON.stringify(criteriaFields)}
 
