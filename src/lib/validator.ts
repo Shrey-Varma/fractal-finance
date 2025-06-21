@@ -1,5 +1,5 @@
 import Ajv from "ajv";
-import ruleSchema from "@/schemas/rule_schema.json";
+import ruleSchema from "@/schemas/rules_schema.json";
 
 const ajv = new Ajv({ allErrors: true });
 const validate = ajv.compile(ruleSchema);

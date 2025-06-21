@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AutomationRule",
+  "type": "object",
+  "required": ["trigger", "action"],
+  "properties": {
+    "trigger": {
+      "type": "object",
+      "required": ["type", "account"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["new_transaction", "income_received", "monthly_timer"]
+        },
+        "account": { "type": "string" },
+        "day_of_month": { "type": "number", "minimum": 1, "maximum": 31 }
+      },
+      "additionalProperties": false
+    },
+    "criteria": {
+      "type": "object",
+      "properties": {
+        "merchant": { "type": "string" },
+        "category": { "type": "string" },
+        "amount_greater_than": { "type": "number", "minimum": 0 },
+        "amount_less_than": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "action": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["transfer", "notify", "save"]
+        },
+        "dollar_amount": { "type": "number", "minimum": 0 },
+        "percent_amount": { "type": "number", "minimum": 0, "maximum": 100 },
+        "destination": { "type": "string" },
+        "goal_name": { "type": "string" },
+        "message": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
