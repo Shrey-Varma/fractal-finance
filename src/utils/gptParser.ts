@@ -3,7 +3,7 @@ import { RunnableSequence } from "@langchain/core/runnables";
 import { JsonOutputParser } from "@langchain/core/output_parsers";
 import fs from "fs";
 import path from "path";
-import { validateRule } from "@/lib/validator";
+import { validateRule } from "@/utils/validator";
 
 // Load schema field enums and parameters
 function loadSchemaDetails() {
