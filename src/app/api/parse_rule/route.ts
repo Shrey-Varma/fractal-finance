@@ -11,6 +11,27 @@ export async function POST(req: NextRequest) {
 
   try {
     const rule = await parseRuleText(text);
+
+    // If day_of_week is 'Any', replace it with the current day
+    if (
+      rule.action &&
+      rule.action.frequency &&
+      typeof rule.action.frequency === "object" &&
+      rule.action.frequency.day_of_week === "Any"
+    ) {
+      const days = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday"
+      ];
+      const today = days[new Date().getDay()];
+      rule.action.frequency.day_of_week = today;
+    }
+
     const valid = validateRule(rule);
 
     if (!valid.success) {

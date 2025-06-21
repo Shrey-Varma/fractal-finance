@@ -10,15 +10,11 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["new_transaction", "income_received", "monthly_timer"]
+          "enum": ["new_transaction", "income_received", "tracking"]
         },
         "account": {
-          "oneOf": [
-            { "type": "string", "enum": ["Any", "All"] },
-            { "type": "string", "pattern": "^[A-Z][a-z]*$" }
-          ]
-        },
-        "day_of_month": { "type": "number", "minimum": 1, "maximum": 31 }
+          "type": "string"
+        }
       },
       "additionalProperties": false
     },
@@ -28,46 +24,43 @@
         "merchant": { "type": "string" },
         "category": { "type": "string" },
         "amount_greater_than": { "type": "number", "minimum": 0 },
-        "amount_less_than": { "type": "number", "minimum": 0 }
+        "amount_less_than": { "type": "number", "minimum": 0 },
+        "tracking_duration": { "type": "string" }
       },
       "additionalProperties": false
     },
     "action": {
       "type": "object",
-      "required": ["type", "from_account"],
+      "required": ["type"],
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["transfer", "notify", "save"]
+          "enum": ["transfer", "notify"]
         },
         "from_account": {
-          "type": "string",
-          "oneOf": [
-            { "enum": ["Any", "All"] },
-            { "pattern": "^[A-Z][a-z]*$" }
-          ]
+          "type": "string"
         },
         "to_account": {
-          "type": "string",
-          "oneOf": [
-            { "enum": ["Any", "All"] },
-            { "pattern": "^[A-Z][a-z]*$" }
-          ]
+          "type": "string"
         },
         "dollar_amount": { "type": "number", "minimum": 0 },
         "percent_amount": { "type": "number", "minimum": 0, "maximum": 100 },
-        "destination": { "type": "string" },
-        "goal_name": { "type": "string" },
-        "message": { "type": "string" }
+        "message": { "type": "string" },
+        "frequency": {
+          "type": "object",
+          "properties": {
+            "day_of_week": {
+              "type": "string",
+              "enum": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday", "Any"]
+            }
+          },
+          "additionalProperties": false
+        }
       },
       "allOf": [
         {
           "if": { "properties": { "type": { "const": "transfer" } } },
-          "then": { "required": ["to_account"] }
-        },
-        {
-          "if": { "properties": { "type": { "const": "notify" } } },
-          "then": { "not": { "required": ["to_account"] } }
+          "then": { "required": ["from_account", "to_account"] }
         }
       ],
       "additionalProperties": false
