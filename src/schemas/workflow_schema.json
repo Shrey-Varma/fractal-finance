@@ -39,19 +39,11 @@
   "definitions": {
     "baseNode": {
       "type": "object",
-      "required": ["id", "type", "position"],
+      "required": ["id", "type"],
       "properties": {
         "id": { "type": "string" },
         "type": { "type": "string" },
         "name": { "type": "string" },
-        "position": {
-          "type": "object",
-          "required": ["x", "y"],
-          "properties": {
-            "x": { "type": "number" },
-            "y": { "type": "number" }
-          }
-        },
         "enabled": { "type": "boolean", "default": true }
       }
     },
