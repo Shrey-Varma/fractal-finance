@@ -3,14 +3,33 @@ import { parseRuleText } from "@/utils/gptParser";
 import { validateRule } from "@/utils/validator";
 
 export async function POST(req: NextRequest) {
-  const { text } = await req.json();
+  const { text, userReprompt } = await req.json();
 
   if (!text) {
     return NextResponse.json({ error: "Missing input text" }, { status: 400 });
   }
 
+  console.log("--- API Route: Processing request ---");
+  console.log("Input text:", text);
+  if (userReprompt) {
+    console.log("User reprompt:", userReprompt);
+  }
+
   try {
-    const rule = await parseRuleText(text);
+    console.log("--- API Route: Calling parseRuleText ---");
+    const rule = await parseRuleText(text, userReprompt);
+    console.log("--- API Route: parseRuleText completed ---");
+    console.log("Parsed rule:", JSON.stringify(rule, null, 2));
+
+    // Apply default tracking dates if not provided
+    if (rule.criteria) {
+      if (!rule.criteria.tracking_start_date) {
+        rule.criteria.tracking_start_date = "now";
+      }
+      if (!rule.criteria.tracking_end_date) {
+        rule.criteria.tracking_end_date = "until trigger";
+      }
+    }
 
     // If day_of_week is 'Any', replace it with the current day
     if (

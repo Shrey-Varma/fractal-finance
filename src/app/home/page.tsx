@@ -4,9 +4,11 @@ import { useState } from "react";
 
 export default function Home() {
   const [text, setText] = useState("");
+  const [userReprompt, setUserReprompt] = useState("");
   const [response, setResponse] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showReprompt, setShowReprompt] = useState(false);
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -17,13 +19,20 @@ export default function Home() {
       const res = await fetch("/api/parse_rule", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text })
+        body: JSON.stringify({ text, userReprompt })
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) {
+        // If parsing failed, show the reprompt field for next attempt
+        setShowReprompt(true);
+        throw new Error(data.error);
+      }
 
       setResponse(data.rule);
+      // Reset reprompt field on success
+      setShowReprompt(false);
+      setUserReprompt("");
     } catch (err: any) {
       setError(err.message || "Unknown error");
     } finally {
@@ -41,6 +50,22 @@ export default function Home() {
         className="w-full p-2 border rounded mb-4"
         rows={4}
       />
+      
+      {showReprompt && (
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            The parsing failed. Please provide additional context to help the model understand:
+          </label>
+          <textarea
+            value={userReprompt}
+            onChange={(e) => setUserReprompt(e.target.value)}
+            placeholder='e.g., "This should be a weekly notification, not a transaction-based rule"'
+            className="w-full p-2 border rounded"
+            rows={3}
+          />
+        </div>
+      )}
+      
       <button
         onClick={handleSubmit}
         disabled={loading}
