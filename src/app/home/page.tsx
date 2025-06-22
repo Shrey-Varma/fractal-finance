@@ -8,9 +8,11 @@ import AccountsOverview from "@/components/AccountsOverview";
 
 export default function Home() {
   const [text, setText] = useState("");
+  const [userReprompt, setUserReprompt] = useState("");
   const [response, setResponse] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showReprompt, setShowReprompt] = useState(false);
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -21,13 +23,20 @@ export default function Home() {
       const res = await fetch("/api/parse_rule", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text })
+        body: JSON.stringify({ text, userReprompt })
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) {
+        // If parsing failed, show the reprompt field for next attempt
+        setShowReprompt(true);
+        throw new Error(data.error);
+      }
 
       setResponse(data.rule);
+      // Reset reprompt field on success
+      setShowReprompt(false);
+      setUserReprompt("");
     } catch (err: any) {
       setError(err.message || "Unknown error");
     } finally {

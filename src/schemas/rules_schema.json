@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "AutomationRule",
   "type": "object",
-  "required": ["trigger", "action"],
+  "required": ["trigger", "action", "criteria"],
   "properties": {
     "trigger": {
       "type": "object",
@@ -10,7 +10,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["new_transaction", "income_received", "tracking"]
+          "enum": ["new_transaction", "income_received", "balance_threshold", "scheduled"]
         },
         "account": {
           "type": "string"
@@ -25,7 +25,8 @@
         "category": { "type": "string" },
         "amount_greater_than": { "type": "number", "minimum": 0 },
         "amount_less_than": { "type": "number", "minimum": 0 },
-        "tracking_duration": { "type": "string" }
+        "tracking_start_date": { "type": "string"},
+        "tracking_end_date": {"type": "string"}
       },
       "additionalProperties": false
     },
@@ -66,5 +67,11 @@
       "additionalProperties": false
     }
   },
+  "allOf": [
+    {
+      "if": { "properties": { "trigger": { "properties": { "type": { "const": "balance_threshold" } }}}},
+      "then": {"properties": {"criteria": {"oneOf": [{ "required": ["amount_greater_than"] }, { "required": ["amount_less_than"] }]}}}
+    }
+  ],
   "additionalProperties": false
 }
