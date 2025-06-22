@@ -2,36 +2,28 @@
 
 import { useState } from "react";
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import PlaidLinkButton from "@/components/PlaidLinkButton";
 import RefreshDataButton from "@/components/RefreshDataButton";
 import AccountsOverview from "@/components/AccountsOverview";
 
 export default function Home() {
   const [text, setText] = useState("");
-  const [response, setResponse] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const router = useRouter();
 
-  const handleSubmit = async () => {
-    setLoading(true);
-    setError("");
-    setResponse(null);
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey && text.trim()) {
+      e.preventDefault();
+      // Navigate to automation creation page with the initial message
+      router.push(`/create-automation?initial=${encodeURIComponent(text.trim())}`);
+    }
+  };
 
-    try {
-      const res = await fetch("/api/parse_rule", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text })
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-
-      setResponse(data.rule);
-    } catch (err: any) {
-      setError(err.message || "Unknown error");
-    } finally {
-      setLoading(false);
+  const handleCreateAutomation = () => {
+    if (text.trim()) {
+      router.push(`/create-automation?initial=${encodeURIComponent(text.trim())}`);
+    } else {
+      router.push('/create-automation');
     }
   };
 
@@ -91,80 +83,52 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right Column - Rule Creation */}
+          {/* Right Column - Automation Creation */}
           <div className="space-y-8">
-            {/* Rule Creation Card */}
+            {/* Automation Creation Card */}
             <div className="feature-card slide-up">
               <div className="flex items-center mb-6">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mr-4">
+                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mr-4">
                   <span className="text-2xl">🤖</span>
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">Create Rules</h2>
-                  <p className="text-gray-600 text-sm">Automate your finances</p>
+                  <h2 className="text-xl font-bold text-gray-900">Create Automations</h2>
+                  <p className="text-gray-600 text-sm">Build intelligent financial workflows</p>
                 </div>
               </div>
 
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Describe your financial rule
+                    Describe your automation
                   </label>
                   <textarea
                     value={text}
                     onChange={(e) => setText(e.target.value)}
-                    placeholder='e.g., "Move 10% of my paycheck to my TFSA"'
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 smooth-transition resize-none"
+                    onKeyDown={handleKeyDown}
+                    placeholder='e.g., "Move 10% of my paycheck to my TFSA" (Press Enter to continue)'
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 smooth-transition resize-none"
                     rows={4}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Press Enter to open the automation builder, or Shift+Enter for new line
+                  </p>
                 </div>
 
                 <button
-                  onClick={handleSubmit}
-                  disabled={loading || !text.trim()}
-                  className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={handleCreateAutomation}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                 >
-                  {loading ? (
-                    <span className="flex items-center justify-center">
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Processing...
-                    </span>
-                  ) : (
-                    "Create Rule"
-                  )}
+                  Open Automation Builder
                 </button>
               </div>
-
-              {error && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <div className="flex items-center">
-                    <span className="text-red-600 mr-2">⚠️</span>
-                    <p className="text-red-700 text-sm">{error}</p>
-                  </div>
-                </div>
-              )}
-
-              {response && (
-                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center mb-2">
-                    <span className="text-green-600 mr-2">✅</span>
-                    <h3 className="font-medium text-green-800">Rule Created Successfully</h3>
-                  </div>
-                  <pre className="text-sm text-green-700 bg-green-100 p-3 rounded overflow-x-auto">
-                    {JSON.stringify(response, null, 2)}
-                  </pre>
-                </div>
-              )}
             </div>
 
             {/* Quick Actions Card */}
             <div className="feature-card">
               <h3 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h3>
               <div className="space-y-3">
-                <button className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 smooth-transition">
+                <button className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-purple-300 hover:bg-purple-50 smooth-transition">
                   <div className="flex items-center">
                     <span className="text-lg mr-3">💰</span>
                     <div>
@@ -174,7 +138,7 @@ export default function Home() {
                   </div>
                 </button>
                 
-                <button className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 smooth-transition">
+                <button className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-purple-300 hover:bg-purple-50 smooth-transition">
                   <div className="flex items-center">
                     <span className="text-lg mr-3">📊</span>
                     <div>
@@ -184,15 +148,18 @@ export default function Home() {
                   </div>
                 </button>
                 
-                <button className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 smooth-transition">
+                <Link 
+                  href="/create-automation"
+                  className="block w-full text-left p-3 rounded-lg border border-gray-200 hover:border-purple-300 hover:bg-purple-50 smooth-transition"
+                >
                   <div className="flex items-center">
                     <span className="text-lg mr-3">⚙️</span>
                     <div>
-                      <div className="font-medium text-gray-900">Manage Rules</div>
-                      <div className="text-sm text-gray-600">Edit or disable rules</div>
+                      <div className="font-medium text-gray-900">Manage Automations</div>
+                      <div className="text-sm text-gray-600">Edit or disable automations</div>
                     </div>
                   </div>
-                </button>
+                </Link>
               </div>
             </div>
           </div>
