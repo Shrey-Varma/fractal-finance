@@ -16,6 +16,7 @@ interface TriggerBlock {
     dayOfWeek?: string;
     dayOfMonth?: number;
     time?: string;
+    date?: string;
   };
   threshold?: {
     amount?: number;
@@ -81,6 +82,7 @@ export default function CreateAutomationPage() {
   const [userAccounts, setUserAccounts] = useState<string[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const initialMessageProcessedRef = useRef(false);
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -111,15 +113,16 @@ export default function CreateAutomationPage() {
     fetchUserAccounts();
     
     const initialMessage = searchParams.get('initial');
-    if (initialMessage) {
+    if (initialMessage && !initialMessageProcessedRef.current) {
       handleSendMessage(initialMessage);
       setShowChat(true);
+      initialMessageProcessedRef.current = true;
     } else {
       // Initialize with a basic rule structure
       setCurrentRule({
         triggers: [{ id: '1', type: 'new_transaction', account: '' }],
         criteria: [],
-        actions: [{ id: '1', type: 'transfer' }],
+        actions: [{ id: '1', type: 'transfer', amount: 0 }],
         tracking_start_date: '',
         tracking_end_date: ''
       });
@@ -246,7 +249,7 @@ export default function CreateAutomationPage() {
     return {
       triggers: triggers.length > 0 ? triggers : [{ id: '1', type: 'new_transaction', account: '' }],
       criteria,
-      actions: actions.length > 0 ? actions : [{ id: '1', type: 'transfer' }],
+      actions: actions.length > 0 ? actions : [{ id: '1', type: 'transfer', amount: 0 }],
       tracking_start_date: globalStartDate,
       tracking_end_date: globalEndDate
     };
@@ -411,7 +414,8 @@ export default function CreateAutomationPage() {
     if (!currentRule) return;
     const newAction: ActionBlock = {
       id: Date.now().toString(),
-      type: 'transfer'
+      type: 'transfer',
+      amount: 0 // Initialize with fixed amount by default
     };
     setCurrentRule({
       ...currentRule,
@@ -652,7 +656,7 @@ export default function CreateAutomationPage() {
                 value={trigger.schedule?.frequency}
                 onSave={(value) => updateTrigger(trigger.id, 'schedule', { ...trigger.schedule, frequency: value })}
                 type="select"
-                options={['daily', 'weekly', 'monthly']}
+                options={['daily', 'weekly', 'monthly', 'once']}
                 placeholder="Select frequency"
               />
             </div>
@@ -678,6 +682,18 @@ export default function CreateAutomationPage() {
                   onSave={(value) => updateTrigger(trigger.id, 'schedule', { ...trigger.schedule, dayOfMonth: parseInt(value) })}
                   type="number"
                   placeholder="1-31"
+                />
+              </div>
+            )}
+
+            {trigger.schedule?.frequency === 'once' && (
+              <div className="flex items-center">
+                <span className="text-sm font-medium mr-2">Date:</span>
+                <EditableField
+                  value={trigger.schedule?.date}
+                  onSave={(value) => updateTrigger(trigger.id, 'schedule', { ...trigger.schedule, date: value })}
+                  type="text"
+                  placeholder="YYYY-MM-DD"
                 />
               </div>
             )}
@@ -872,11 +888,9 @@ export default function CreateAutomationPage() {
               <span className="text-sm font-medium mr-2">Amount Type:</span>
               <button
                 onClick={() => {
-                  if (action.amount === undefined) {
-                    // Switch to fixed amount mode
-                    updateAction(action.id, 'percentage', undefined);
-                    updateAction(action.id, 'amount', 0);
-                  }
+                  // Switch to fixed amount mode - remove percentage field
+                  updateAction(action.id, 'percentage', undefined);
+                  updateAction(action.id, 'amount', action.amount || 0);
                 }}
                 className={`px-3 py-1 rounded text-xs font-medium transition-all ${
                   action.amount !== undefined 
@@ -888,11 +902,9 @@ export default function CreateAutomationPage() {
               </button>
               <button
                 onClick={() => {
-                  if (action.percentage === undefined) {
-                    // Switch to percentage mode
-                    updateAction(action.id, 'amount', undefined);
-                    updateAction(action.id, 'percentage', 0);
-                  }
+                  // Switch to percentage mode - remove amount field
+                  updateAction(action.id, 'amount', undefined);
+                  updateAction(action.id, 'percentage', action.percentage || 0);
                 }}
                 className={`ml-2 px-3 py-1 rounded text-xs font-medium transition-all ${
                   action.percentage !== undefined 

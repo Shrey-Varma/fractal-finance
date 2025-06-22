@@ -124,8 +124,21 @@ DEFAULT DATE BEHAVIOR:
 ${availableAccounts && availableAccounts.length > 0 ? 
   `AVAILABLE USER ACCOUNTS: ${availableAccounts.join(', ')}
   
-  When specifying account names, you MUST use one of these exact account names. Choose the closest matching account name for the user's request.` : 
-  ''
+  ACCOUNT SELECTION RULES:
+  - When specifying account names, you MUST use one of these exact account names: ${availableAccounts.join(', ')}
+  - Choose the closest matching account name for the user's request
+  - Common patterns to look for:
+    * "checking", "chequing", "main account" → usually the primary checking account
+    * "savings", "savings account" → usually a savings account
+    * "credit card", "visa", "mastercard" → credit card accounts
+    * "TFSA", "RRSP", "retirement" → investment/retirement accounts
+    * "vacation fund", "emergency fund", "travel fund" → specific savings goals
+    * "paycheck", "income", "salary" → usually the account where income is deposited
+  - If you cannot determine which account the user means, leave the account field blank ("")
+  - For transfers, if only one account is mentioned, assume it's the destination (toAccount) and leave fromAccount blank
+  - If no accounts are mentioned, leave both fromAccount and toAccount blank
+  - NEVER make up account names that aren't in the available list` : 
+  'AVAILABLE USER ACCOUNTS: None found - leave all account fields blank ("")'
 }
 
 ${currentWorkflow ? 
@@ -153,9 +166,10 @@ Create a workflow that matches this structure:
         "tracking_start_date": "YYYY-MM-DD format OR 'now' (default: 'now')",
         "tracking_end_date": "YYYY-MM-DD format OR 'indefinite' (default: 'indefinite')",
         "schedule": {
-          "frequency": "daily|weekly|monthly",
+          "frequency": "daily|weekly|monthly|once",
           "dayOfWeek": "Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Any",
-          "time": "HH:MM"
+          "time": "HH:MM",
+          "date": "YYYY-MM-DD (required for once frequency)"
         }
       }
     },
@@ -217,6 +231,7 @@ TRIGGER NODES (${JSON.stringify(triggerTypes)}):
 - income_received: When income is deposited
 - balance_threshold: When account balance crosses a threshold
   REQUIRED: threshold object with amount and operator
+- account: Leave blank ("") if no specific account is mentioned in the user's request
 
 CONDITION NODES (${JSON.stringify(conditionTypes)}):
 - spending_threshold: Check if spending exceeds amount in time window
@@ -229,10 +244,22 @@ CONDITION NODES (${JSON.stringify(conditionTypes)}):
   REQUIRED: category
 - amount_range: Check if amount is within range
   REQUIRED: amount, operator
+- account: Leave blank ("") if no specific account is mentioned in the user's request
 
 ACTION NODES (${JSON.stringify(actionTypes)}):
 - transfer: Move money between accounts
-  REQUIRED: fromAccount, toAccount
+  REQUIRED: fromAccount, toAccount (leave blank if unclear)
+  AMOUNT TYPE: Choose between:
+    - amount: Fixed dollar amount (e.g., $50, $100, $25.50)
+    - percentage: Percentage of balance/amount (e.g., 10%, 25%, 5%)
+  IMPORTANT: Use 'amount' for fixed dollar amounts, 'percentage' for percentage-based transfers
+  EXAMPLES:
+    - "transfer $50" → use amount: 50
+    - "transfer 10%" → use percentage: 10
+    - "transfer $100 to savings" → use amount: 100
+    - "transfer 25% of balance" → use percentage: 25
+    - "move $75" → use amount: 75
+    - "save 15%" → use percentage: 15
 - notify: Send notification message
   REQUIRED: message
 - set_reminder: Set a reminder
@@ -253,17 +280,49 @@ Input: "Every Tuesday if my account balance is lower than 500$ and if I have spe
 
 Should create:
 - Trigger: Scheduled (every Tuesday) - REQUIRES schedule object, tracking_start_date: "now", tracking_end_date: "indefinite"
-- Condition 1: Balance check (< $500) - REQUIRES amount and operator, tracking_start_date: "now", tracking_end_date: "indefinite"
-- Condition 2: Spending threshold (> $50 on Amazon) - REQUIRES amount, operator, and merchant, tracking_start_date: "now", tracking_end_date: "indefinite"
+- Condition 1: Balance check (< $500) - REQUIRES amount and operator, account: "" (leave blank if no specific account mentioned), tracking_start_date: "now", tracking_end_date: "indefinite"
+- Condition 2: Spending threshold (> $50 on Amazon) - REQUIRES amount, operator, and merchant, account: "" (leave blank if no specific account mentioned), tracking_start_date: "now", tracking_end_date: "indefinite"
 - Action 1: Notify ("cut down on spending") - REQUIRES message, tracking_start_date: "now", tracking_end_date: "indefinite"
-- Action 2: Transfer ($10 to savings) - REQUIRES fromAccount, toAccount, and amount, tracking_start_date: "now", tracking_end_date: "indefinite"
+- Action 2: Transfer ($10 to savings) - REQUIRES fromAccount: "" (leave blank), toAccount: "savings account name", and amount: 10 (NOT percentage), tracking_start_date: "now", tracking_end_date: "indefinite"
 
-Input: "Check my spending on amazon this weekend and if it's over $100, transfer $50 to savings"
+Input: "Check my spending on amazon this weekend and if it's over $100, transfer 10% of my balance to savings"
 
 Should create:
-- Trigger: New transaction - tracking_start_date: "${currentDateInfo.thisWeekend.saturday}", tracking_end_date: "${currentDateInfo.thisWeekend.sunday}"
-- Condition: Spending threshold (> $100 on Amazon) with timeWindow: {"start": "${currentDateInfo.thisWeekend.saturday}", "end": "${currentDateInfo.thisWeekend.sunday}"}
-- Action: Transfer ($50 to savings) - tracking_start_date: "${currentDateInfo.thisWeekend.saturday}", tracking_end_date: "${currentDateInfo.thisWeekend.sunday}"
+- Trigger: New transaction - account: "" (leave blank), tracking_start_date: "${currentDateInfo.thisWeekend.saturday}", tracking_end_date: "${currentDateInfo.thisWeekend.sunday}"
+- Condition: Spending threshold (> $100 on Amazon) with account: "" (leave blank), timeWindow: {"start": "${currentDateInfo.thisWeekend.saturday}", "end": "${currentDateInfo.thisWeekend.sunday}"}
+- Action: Transfer (10% to savings) - REQUIRES fromAccount: "" (leave blank), toAccount: "savings account name", and percentage: 10 (NOT amount), tracking_start_date: "${currentDateInfo.thisWeekend.saturday}", tracking_end_date: "${currentDateInfo.thisWeekend.sunday}"
+
+Input: "On December 25th, if my balance is over $1000, transfer $100 to savings"
+
+Should create:
+- Trigger: Scheduled (once on December 25th) - REQUIRES schedule object with frequency: "once" and date: "2024-12-25", account: "" (leave blank), tracking_start_date: "2024-12-25", tracking_end_date: "2024-12-25"
+- Condition: Balance check (> $1000) - REQUIRES amount and operator, account: "" (leave blank), tracking_start_date: "2024-12-25", tracking_end_date: "2024-12-25"
+- Action: Transfer ($100 to savings) - REQUIRES fromAccount: "" (leave blank), toAccount: "savings account name", and amount: 100 (NOT percentage), tracking_start_date: "2024-12-25", tracking_end_date: "2024-12-25"
+
+Input: "When I receive income, automatically save 20% of it"
+
+Should create:
+- Trigger: Income received - account: "" (leave blank), tracking_start_date: "now", tracking_end_date: "indefinite"
+- Action: Transfer (20% to savings) - REQUIRES fromAccount: "" (leave blank), toAccount: "savings account name", and percentage: 20 (NOT amount), tracking_start_date: "now", tracking_end_date: "indefinite"
+
+Input: "Every Friday, transfer $50 to my vacation fund"
+
+Should create:
+- Trigger: Scheduled (every Friday) - REQUIRES schedule object with frequency: "weekly" and dayOfWeek: "Friday", account: "" (leave blank), tracking_start_date: "now", tracking_end_date: "indefinite"
+- Action: Transfer ($50 to vacation fund) - REQUIRES fromAccount: "" (leave blank), toAccount: "vacation fund account name", and amount: 50 (NOT percentage), tracking_start_date: "now", tracking_end_date: "indefinite"
+
+Input: "Transfer $100 from my checking to my credit card"
+
+Should create:
+- Trigger: New transaction - account: "" (leave blank), tracking_start_date: "now", tracking_end_date: "indefinite"
+- Action: Transfer ($100) - REQUIRES fromAccount: "checking account name", toAccount: "credit card account name", and amount: 100 (NOT percentage), tracking_start_date: "now", tracking_end_date: "indefinite"
+
+Input: "If I spend more than $200 on restaurants this month, notify me"
+
+Should create:
+- Trigger: New transaction - account: "" (leave blank), tracking_start_date: "now", tracking_end_date: "indefinite"
+- Condition: Spending threshold (> $200) with category: "restaurants", account: "" (leave blank), tracking_start_date: "now", tracking_end_date: "indefinite"
+- Action: Notify - REQUIRES message: "You've spent more than $200 on restaurants this month", tracking_start_date: "now", tracking_end_date: "indefinite"
 
 Respond ONLY with a valid JSON workflow object.
 `;
