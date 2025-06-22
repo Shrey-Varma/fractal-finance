@@ -1139,7 +1139,7 @@ export default function CreateAutomationPage() {
                 ← Back to Dashboard
               </Link>
               <div className="text-2xl font-bold text-gray-900">
-                <span className="text-purple-600">Automation Builder</span>
+                <span style={{ color: '#1c4587' }}>Automation Builder</span>
               </div>
             </div>
             <div className="flex items-center space-x-3">
@@ -1220,7 +1220,8 @@ export default function CreateAutomationPage() {
                 <button
                   onClick={() => handleSendMessage()}
                   disabled={loading || !inputText.trim()}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed smooth-transition text-sm"
+                  style={{ color: '#1c4587' }}
+                  className="hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed smooth-transition text-sm"
                 >
                   Send
                 </button>
