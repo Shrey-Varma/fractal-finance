@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import PlaidLinkButton from "@/components/PlaidLinkButton";
 import RefreshDataButton from "@/components/RefreshDataButton";
 import AccountsOverview from "@/components/AccountsOverview";
+import ProfileSettings from "@/components/ProfileSettings";
 
 export default function Home() {
   const [text, setText] = useState("");
@@ -122,6 +123,11 @@ export default function Home() {
                   Open Automation Builder
                 </button>
               </div>
+            </div>
+
+            {/* Profile Settings Card */}
+            <div className="feature-card">
+              <ProfileSettings />
             </div>
 
             {/* Quick Actions Card */}

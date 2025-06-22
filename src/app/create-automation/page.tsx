@@ -85,6 +85,8 @@ export default function CreateAutomationPage() {
   const initialMessageProcessedRef = useRef(false);
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [automationName, setAutomationName] = useState('');
+  const [editingAutomationId, setEditingAutomationId] = useState<string | null>(null);
 
   const fetchUserAccounts = async () => {
     try {
@@ -113,9 +115,46 @@ export default function CreateAutomationPage() {
     fetchUserAccounts();
     
     const initialMessage = searchParams.get('initial');
-    if (initialMessage && !initialMessageProcessedRef.current) {
+    const editData = searchParams.get('edit');
+    
+    if (editData && !initialMessageProcessedRef.current) {
+      // Load existing automation for editing
+      try {
+        const automationData = JSON.parse(decodeURIComponent(editData));
+        setEditingAutomationId(automationData.id);
+        setAutomationName(automationData.name || '');
+        
+        // Convert the schema to our rule format
+        if (automationData.schema) {
+          const rule = convertWorkflowToRule({ nodes: [] }); // Start with empty
+          // If the schema is already in our rule format, use it directly
+          if (automationData.schema.triggers || automationData.schema.criteria || automationData.schema.actions) {
+            setCurrentRule({
+              triggers: automationData.schema.triggers || [{ id: '1', type: 'new_transaction', account: '' }],
+              criteria: automationData.schema.criteria || [],
+              actions: automationData.schema.actions || [{ id: '1', type: 'transfer', amount: 0 }],
+              tracking_start_date: automationData.schema.tracking_start_date || '',
+              tracking_end_date: automationData.schema.tracking_end_date || ''
+            });
+          } else {
+            // If it's a workflow format, convert it
+            setCurrentRule(convertWorkflowToRule(automationData.schema));
+          }
+        }
+        initialMessageProcessedRef.current = true;
+      } catch (error) {
+        console.error('Error loading automation for editing:', error);
+        // Fall back to default initialization
+        setCurrentRule({
+          triggers: [{ id: '1', type: 'new_transaction', account: '' }],
+          criteria: [],
+          actions: [{ id: '1', type: 'transfer', amount: 0 }],
+          tracking_start_date: '',
+          tracking_end_date: ''
+        });
+      }
+    } else if (initialMessage && !initialMessageProcessedRef.current) {
       handleSendMessage(initialMessage);
-      setShowChat(true);
       initialMessageProcessedRef.current = true;
     } else {
       // Initialize with a basic rule structure
@@ -973,6 +1012,122 @@ export default function CreateAutomationPage() {
     </div>
   );
 
+  const handleSaveAutomation = async () => {
+    if (!currentRule) return;
+    const workflowSchema = convertRuleToWorkflow(currentRule);
+    const nameToSave = automationName.trim() || `Automation ${new Date().toISOString()}`;
+
+    try {
+      let response;
+      let successMessage;
+
+      if (editingAutomationId) {
+        // Update existing automation
+        response = await fetch('/api/update-workflow', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingAutomationId,
+            name: nameToSave,
+            start_date: currentRule?.tracking_start_date || null,
+            end_date: currentRule?.tracking_end_date || null,
+            workflow: currentRule, // Save as rule format instead of workflow
+            is_active: true
+          })
+        });
+        successMessage = 'Automation updated successfully!';
+      } else {
+        // Create new automation
+        response = await fetch('/api/save-workflow', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: nameToSave,
+            start_date: currentRule?.tracking_start_date || null,
+            end_date: currentRule?.tracking_end_date || null,
+            workflow: currentRule, // Save as rule format instead of workflow
+            is_active: true
+          })
+        });
+        successMessage = 'Automation saved successfully!';
+      }
+
+      const data = await response.json();
+      if (response.ok) {
+        let message = successMessage;
+        
+        // Check if immediate trigger execution was performed
+        if (data.immediateCheck?.executed) {
+          const immediateCheck = data.immediateCheck;
+          
+          // Handle legacy format (for old balance threshold only responses)
+          if (immediateCheck.results) {
+            const { automationsFound, accountsFound, triggersExecuted, notificationsSent } = immediateCheck.results;
+            message += `\n\n🎯 Balance Threshold Check Executed:
+• Found ${automationsFound} automation(s)
+• Checked ${accountsFound} account(s)
+• Executed ${triggersExecuted} trigger(s)
+• Sent ${notificationsSent} notification(s)`;
+            
+            if (notificationsSent > 0) {
+              message += '\n\n📱 SMS notifications have been sent to your phone!';
+            }
+          }
+          // Handle new combined format
+          else {
+            message += `\n\n🚀 Immediate Trigger Execution Results:`;
+            
+            // Balance threshold results
+            if (immediateCheck.balanceThreshold) {
+              const bt = immediateCheck.balanceThreshold;
+              message += `\n\n⚖️ Balance Threshold Check:
+• Found ${bt.automationsFound} automation(s)
+• Checked ${bt.accountsFound} account(s)
+• Executed ${bt.triggersExecuted} trigger(s)
+• Sent ${bt.notificationsSent} notification(s)`;
+            }
+            
+            // New transaction results
+            if (immediateCheck.newTransaction) {
+              const nt = immediateCheck.newTransaction;
+              message += `\n\n🆕 New Transaction Check:
+• Found ${nt.automationsFound} automation(s)
+• Checked ${nt.accountsFound} account(s)
+• Executed ${nt.triggersExecuted} trigger(s)
+• Sent ${nt.notificationsSent} notification(s)`;
+            }
+            
+            // Summary
+            if (immediateCheck.totalExecutions > 0) {
+              message += `\n\n📊 Total Summary:
+• ${immediateCheck.totalExecutions} trigger(s) executed
+• ${immediateCheck.totalNotifications} notification(s) sent`;
+              
+              if (immediateCheck.totalNotifications > 0) {
+                message += '\n\n📱 SMS notifications have been sent to your phone!';
+              }
+            } else {
+              message += '\n\n💡 No triggers were executed (conditions not met or no recent data)';
+            }
+          }
+        } else if (data.immediateCheck?.executed === false) {
+          message += '\n\n⚠️ Immediate trigger execution failed but automation was saved successfully.';
+          if (data.immediateCheck?.error) {
+            message += `\nError: ${data.immediateCheck.error}`;
+          }
+        }
+        
+        alert(message);
+        // Navigate back to automations list
+        router.push('/automations');
+      } else {
+        alert(`Failed to save automation: ${data.error}`);
+      }
+    } catch (err: any) {
+      alert(`Error saving automation: ${err.message}`);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation */}
@@ -988,14 +1143,22 @@ export default function CreateAutomationPage() {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <button
-                onClick={() => setShowChat(!showChat)}
-                className="btn-secondary text-sm"
+              <input
+                type="text"
+                value={automationName}
+                onChange={(e) => setAutomationName(e.target.value)}
+                placeholder="Automation name"
+                className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                style={{ minWidth: '200px' }}
+              />
+              <Link
+                href="/automations"
+                className="btn-secondary text-sm inline-block text-center"
               >
-                {showChat ? 'Hide' : 'Show'} AI Assistant
-              </button>
-              <button className="btn-primary">
-                Save Automation
+                View Automations
+              </Link>
+              <button className="btn-primary" onClick={handleSaveAutomation} disabled={loading}>
+                {editingAutomationId ? 'Update Automation' : 'Save Automation'}
               </button>
             </div>
           </div>
@@ -1003,9 +1166,8 @@ export default function CreateAutomationPage() {
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* AI Assistant Chat (Collapsible) */}
-        {showChat && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 mb-8 slide-up">
+        {/* AI Assistant Chat */}
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 mb-8 slide-up">
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
@@ -1017,12 +1179,7 @@ export default function CreateAutomationPage() {
                     <p className="text-sm text-gray-600">Describe changes to update your automation</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setShowChat(false)}
-                  className="text-gray-400 hover:text-gray-600 smooth-transition"
-                >
-                  ✕
-                </button>
+
               </div>
             </div>
 
@@ -1070,12 +1227,13 @@ export default function CreateAutomationPage() {
               </div>
             </div>
           </div>
-        )}
 
-                  {/* Main Automation Workflow */}
+        {/* Main Automation Workflow */}
           <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8">
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Build Your Automation</h1>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                {editingAutomationId ? 'Edit Your Automation' : 'Build Your Automation'}
+              </h1>
               <p className="text-gray-600">Click on any field to edit it directly, or add more blocks</p>
             </div>
 
