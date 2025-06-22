@@ -15,7 +15,7 @@ body {
 
 /* Custom button animations */
 .btn-primary {
-  background-color: #2563eb;
+  background-color: #1c4587;
   color: white;
   font-weight: 600;
   padding: 12px 24px;
@@ -26,14 +26,14 @@ body {
 }
 
 .btn-primary:hover {
-  background-color: #1d4ed8;
+  background-color: #799da7;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
   transform: translateY(-2px);
 }
 
 .btn-secondary {
   border: 1px solid #d1d5db;
-  color: #374151;
+  color: #b0d5cd;
   font-weight: 600;
   padding: 12px 24px;
   border-radius: 8px;
@@ -63,7 +63,7 @@ body {
 
 /* Gradient backgrounds */
 .gradient-hero {
-  background: linear-gradient(135deg, #f0f9ff 0%, #ffffff 50%, #f0f4ff 100%);
+  background: linear-gradient(135deg, #1c4587 0%, #ffffff 50%, #f0f4ff 100%);
 }
 
 /* Custom animations */

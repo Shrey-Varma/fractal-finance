@@ -9,7 +9,7 @@ export default function LandingPage() {
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
               <div className="text-2xl font-bold text-gray-900">
-                <span className="text-blue-600">Fractal</span>
+                <span style={{ color: '#1c4587' }}>Fractal</span>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -36,7 +36,7 @@ export default function LandingPage() {
           <div className="text-center fade-in">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
               Your Money,
-              <span className="text-blue-600"> Automated</span>
+              <span style={{ color: '#1c4587' }}> Automated</span>
             </h1>
             <p className="mt-6 text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
               Transform simple commands into powerful financial automation. 
@@ -60,7 +60,7 @@ export default function LandingPage() {
                   
                   <div className="mt-4 flex items-center justify-center">
                     <div className="w-8 h-1 bg-blue-200 rounded"></div>
-                    <div className="mx-3 text-blue-600 text-2xl">→</div>
+                    <div className="mx-3 text-customBlue text-2xl">→</div>
                     <div className="w-8 h-1 bg-blue-200 rounded"></div>
                   </div>
                   
@@ -68,7 +68,7 @@ export default function LandingPage() {
                     <p className="text-blue-800 font-medium text-sm">
                       ✅ Automated Rule Created
                     </p>
-                    <p className="text-blue-600 text-sm mt-1">
+                    <p style={{ color: '#1c4587' }}>
                       Every paycheck → 10% automatically saved to TFSA
                     </p>
                   </div>
@@ -199,7 +199,7 @@ export default function LandingPage() {
       </section>
 
       {/* Social Proof Section */}
-      <section className="py-20 bg-blue-600">
+      <section style={{ color: '#1c4587' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-8">
@@ -246,7 +246,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <div className="text-2xl font-bold text-white mb-4">
-              <span className="text-blue-400">Fractal</span>
+              <span style={{ color: '#1c4587' }}>Fractal</span>
             </div>
             <p className="text-gray-400 mb-6">
               Intelligent financial automation for everyone
