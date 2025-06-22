@@ -78,11 +78,38 @@ export default function CreateAutomationPage() {
   const [currentRule, setCurrentRule] = useState<AutomationRule | null>(null);
   const [showChat, setShowChat] = useState(false);
   const [editingField, setEditingField] = useState<string | null>(null);
+  const [userAccounts, setUserAccounts] = useState<string[]>([]);
+  const [loadingAccounts, setLoadingAccounts] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
 
+  const fetchUserAccounts = async () => {
+    try {
+      setLoadingAccounts(true);
+      const response = await fetch('/api/get-user-data');
+      const data = await response.json();
+      
+      if (response.ok && data.accounts) {
+        const accountNames = data.accounts.map((account: any) => 
+          account.official_name || account.name
+        ).filter(Boolean);
+        setUserAccounts(accountNames);
+      } else {
+        console.error('Failed to fetch user accounts:', data.error);
+        setUserAccounts([]);
+      }
+    } catch (error) {
+      console.error('Error fetching user accounts:', error);
+      setUserAccounts([]);
+    } finally {
+      setLoadingAccounts(false);
+    }
+  };
+
   useEffect(() => {
+    fetchUserAccounts();
+    
     const initialMessage = searchParams.get('initial');
     if (initialMessage) {
       handleSendMessage(initialMessage);
@@ -122,7 +149,7 @@ export default function CreateAutomationPage() {
           id: node.id,
           name: node.name,
           type: node.config?.triggerType || 'new_transaction',
-          account: node.config?.account,
+          account: findClosestAccount(node.config?.account || '', userAccounts),
           tracking_start_date: node.config?.tracking_start_date,
           tracking_end_date: node.config?.tracking_end_date,
           schedule: node.config?.schedule,
@@ -133,7 +160,7 @@ export default function CreateAutomationPage() {
         const baseCondition = {
           id: node.id,
           name: node.name,
-          account: node.config?.account,
+          account: findClosestAccount(node.config?.account || '', userAccounts),
           tracking_start_date: node.config?.tracking_start_date,
           tracking_end_date: node.config?.tracking_end_date,
           timeWindow: node.config?.timeWindow
@@ -191,8 +218,8 @@ export default function CreateAutomationPage() {
           id: node.id,
           name: node.name,
           type: node.config?.actionType || 'transfer',
-          fromAccount: node.config?.fromAccount,
-          toAccount: node.config?.toAccount,
+          fromAccount: findClosestAccount(node.config?.fromAccount || '', userAccounts),
+          toAccount: findClosestAccount(node.config?.toAccount || '', userAccounts),
           amount: node.config?.amount,
           percentage: node.config?.percentage,
           message: node.config?.message,
@@ -321,7 +348,8 @@ export default function CreateAutomationPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           text: messageText,
-          currentWorkflow: currentRule ? convertRuleToWorkflow(currentRule) : null
+          currentWorkflow: currentRule ? convertRuleToWorkflow(currentRule) : null,
+          availableAccounts: userAccounts
         })
       });
 
@@ -483,6 +511,26 @@ export default function CreateAutomationPage() {
     };
   };
 
+  const findClosestAccount = (suggestedAccount: string, availableAccounts: string[]): string => {
+    if (!suggestedAccount || availableAccounts.length === 0) return '';
+    
+    // Exact match
+    const exactMatch = availableAccounts.find(account => 
+      account.toLowerCase() === suggestedAccount.toLowerCase()
+    );
+    if (exactMatch) return exactMatch;
+    
+    // Partial match
+    const partialMatch = availableAccounts.find(account =>
+      account.toLowerCase().includes(suggestedAccount.toLowerCase()) ||
+      suggestedAccount.toLowerCase().includes(account.toLowerCase())
+    );
+    if (partialMatch) return partialMatch;
+    
+    // If no match, return the first account or empty string
+    return availableAccounts[0] || '';
+  };
+
   const EditableField = ({ 
     value, 
     onSave, 
@@ -590,7 +638,9 @@ export default function CreateAutomationPage() {
           <EditableField
             value={trigger.account}
             onSave={(value) => updateTrigger(trigger.id, 'account', value)}
-            placeholder="Enter account name"
+            type="select"
+            options={userAccounts}
+            placeholder={loadingAccounts ? "Loading accounts..." : "Select account"}
           />
         </div>
 
@@ -753,7 +803,9 @@ export default function CreateAutomationPage() {
           <EditableField
             value={criteria.account}
             onSave={(value) => updateCriteria(criteria.id, 'account', value)}
-            placeholder="Any account"
+            type="select"
+            options={['Any account', ...userAccounts]}
+            placeholder={loadingAccounts ? "Loading accounts..." : "Select account"}
           />
         </div>
 
@@ -799,7 +851,9 @@ export default function CreateAutomationPage() {
               <EditableField
                 value={action.fromAccount}
                 onSave={(value) => updateAction(action.id, 'fromAccount', value)}
-                placeholder="Source account"
+                type="select"
+                options={userAccounts}
+                placeholder={loadingAccounts ? "Loading accounts..." : "Select source account"}
               />
             </div>
             
@@ -808,7 +862,9 @@ export default function CreateAutomationPage() {
               <EditableField
                 value={action.toAccount}
                 onSave={(value) => updateAction(action.id, 'toAccount', value)}
-                placeholder="Destination account"
+                type="select"
+                options={userAccounts}
+                placeholder={loadingAccounts ? "Loading accounts..." : "Select destination account"}
               />
             </div>
             

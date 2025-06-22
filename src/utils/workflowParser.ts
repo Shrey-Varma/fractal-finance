@@ -46,11 +46,95 @@ const model = new ChatOpenAI({
   openAIApiKey: process.env.OPENAI_API_KEY
 });
 
-export async function parseWorkflowText(text: string, userReprompt?: string) {
+export async function parseWorkflowText(text: string, userReprompt?: string, currentWorkflow?: any, availableAccounts?: string[]) {
   const { triggerTypes, conditionTypes, actionTypes } = loadWorkflowSchemaDetails();
+  
+  // Get current date information for relative date processing
+  const now = new Date();
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  
+  // Helper function to format date as YYYY-MM-DD
+  const formatDate = (date: Date): string => {
+    return date.toISOString().split('T')[0];
+  };
+  
+  // Calculate common relative dates
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const nextSaturday = new Date(now);
+  nextSaturday.setDate(now.getDate() + (6 - now.getDay() + 7) % 7 || 7); // Next Saturday
+  const nextSunday = new Date(nextSaturday.getTime() + 24 * 60 * 60 * 1000); // Day after Saturday
+  
+  // This week's Monday and Sunday
+  const thisWeekMonday = new Date(now);
+  thisWeekMonday.setDate(now.getDate() - now.getDay() + 1);
+  const thisWeekSunday = new Date(thisWeekMonday);
+  thisWeekSunday.setDate(thisWeekMonday.getDate() + 6);
+  
+  // Next week's Monday and Sunday
+  const nextWeekMonday = new Date(thisWeekMonday);
+  nextWeekMonday.setDate(thisWeekMonday.getDate() + 7);
+  const nextWeekSunday = new Date(nextWeekMonday);
+  nextWeekSunday.setDate(nextWeekMonday.getDate() + 6);
+  
+  const currentDateInfo = {
+    date: formatDate(now),
+    dayOfWeek: days[now.getDay()],
+    fullDate: `${months[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`,
+    time: now.toTimeString().slice(0, 5), // HH:MM format
+    tomorrow: formatDate(tomorrow),
+    thisWeekend: {
+      saturday: formatDate(nextSaturday),
+      sunday: formatDate(nextSunday)
+    },
+    thisWeek: {
+      monday: formatDate(thisWeekMonday),
+      sunday: formatDate(thisWeekSunday)
+    },
+    nextWeek: {
+      monday: formatDate(nextWeekMonday),
+      sunday: formatDate(nextWeekSunday)
+    }
+  };
 
-  const basePrompt = `
+  let basePrompt = `
 You are a financial automation workflow assistant. Convert user input into a JSON workflow with interconnected nodes.
+
+CURRENT DATE & TIME CONTEXT:
+- Today is: ${currentDateInfo.fullDate} (${currentDateInfo.dayOfWeek})
+- Current date: ${currentDateInfo.date}
+- Current time: ${currentDateInfo.time}
+
+RELATIVE DATE PROCESSING:
+When users mention relative dates, calculate the actual dates based on today's information:
+- "this weekend" = ${currentDateInfo.thisWeekend.saturday} to ${currentDateInfo.thisWeekend.sunday}
+- "next week" = ${currentDateInfo.nextWeek.monday} to ${currentDateInfo.nextWeek.sunday}
+- "this week" = ${currentDateInfo.thisWeek.monday} to ${currentDateInfo.thisWeek.sunday}
+- "tomorrow" = ${currentDateInfo.tomorrow}
+- "today" = ${currentDateInfo.date}
+- "next saturday" = ${currentDateInfo.thisWeekend.saturday}
+- "next sunday" = ${currentDateInfo.thisWeekend.sunday}
+- Always calculate specific dates (YYYY-MM-DD format) from relative terms
+- For time ranges, use the calculated start and end dates in timeWindow objects
+
+DEFAULT DATE BEHAVIOR:
+- If no specific tracking dates are mentioned, use "now" for tracking_start_date and "indefinite" for tracking_end_date
+- For timeWindow start/end, use specific calculated dates if relative terms are used
+
+${availableAccounts && availableAccounts.length > 0 ? 
+  `AVAILABLE USER ACCOUNTS: ${availableAccounts.join(', ')}
+  
+  When specifying account names, you MUST use one of these exact account names. Choose the closest matching account name for the user's request.` : 
+  ''
+}
+
+${currentWorkflow ? 
+  `CURRENT WORKFLOW CONTEXT:
+  ${JSON.stringify(currentWorkflow, null, 2)}
+  
+  You are modifying an existing workflow. Update it based on the user's new request while keeping relevant existing parts.` : 
+  ''
+}
 
 Create a workflow that matches this structure:
 
@@ -66,8 +150,8 @@ Create a workflow that matches this structure:
       "config": {
         "triggerType": "scheduled|new_transaction|income_received|balance_threshold",
         "account": "account name",
-        "tracking_start_date": "the day in natural language e.g., last sunday, tomorrow, July 25, 2025",
-        "tracking_end_date": "the day in natural language e.g., next sunday, after 10 days, July 30, 2025",
+        "tracking_start_date": "YYYY-MM-DD format OR 'now' (default: 'now')",
+        "tracking_end_date": "YYYY-MM-DD format OR 'indefinite' (default: 'indefinite')",
         "schedule": {
           "frequency": "daily|weekly|monthly",
           "dayOfWeek": "Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Any",
@@ -86,11 +170,11 @@ Create a workflow that matches this structure:
         "category": "category name",
         "amount": 50,
         "operator": "greater_than|less_than|equals|contains",
-        "tracking_start_date": "the day in natural language e.g., last sunday, tomorrow, July 25, 2025",
-        "tracking_end_date": "the day in natural language e.g., next sunday, after 10 days, July 30, 2025",
+        "tracking_start_date": "YYYY-MM-DD format OR 'now' (default: 'now')",
+        "tracking_end_date": "YYYY-MM-DD format OR 'indefinite' (default: 'indefinite')",
         "timeWindow": {
-          "start": "start date",
-          "end": "end date"
+          "start": "YYYY-MM-DD format for specific date ranges",
+          "end": "YYYY-MM-DD format for specific date ranges"
         }
       }
     },
@@ -104,8 +188,8 @@ Create a workflow that matches this structure:
         "toAccount": "to account", 
         "amount": 10,
         "message": "notification message",
-        "tracking_start_date": "the day in natural language e.g., last sunday, tomorrow, July 25, 2025",
-        "tracking_end_date": "the day in natural language e.g., next sunday, after 10 days, July 30, 2025"
+        "tracking_start_date": "YYYY-MM-DD format OR 'now' (default: 'now')",
+        "tracking_end_date": "YYYY-MM-DD format OR 'indefinite' (default: 'indefinite')"
       }
     }
   ],
@@ -168,11 +252,18 @@ EXAMPLES:
 Input: "Every Tuesday if my account balance is lower than 500$ and if I have spent more than 50$ on amazon, send me a message saying 'cut down on spending' and transfer 10$ to my savings account"
 
 Should create:
-- Trigger: Scheduled (every Tuesday) - REQUIRES schedule object
-- Condition 1: Balance check (< $500) - REQUIRES amount and operator
-- Condition 2: Spending threshold (> $50 on Amazon) - REQUIRES amount, operator, and merchant
-- Action 1: Notify ("cut down on spending") - REQUIRES message
-- Action 2: Transfer ($10 to savings) - REQUIRES fromAccount, toAccount, and amount
+- Trigger: Scheduled (every Tuesday) - REQUIRES schedule object, tracking_start_date: "now", tracking_end_date: "indefinite"
+- Condition 1: Balance check (< $500) - REQUIRES amount and operator, tracking_start_date: "now", tracking_end_date: "indefinite"
+- Condition 2: Spending threshold (> $50 on Amazon) - REQUIRES amount, operator, and merchant, tracking_start_date: "now", tracking_end_date: "indefinite"
+- Action 1: Notify ("cut down on spending") - REQUIRES message, tracking_start_date: "now", tracking_end_date: "indefinite"
+- Action 2: Transfer ($10 to savings) - REQUIRES fromAccount, toAccount, and amount, tracking_start_date: "now", tracking_end_date: "indefinite"
+
+Input: "Check my spending on amazon this weekend and if it's over $100, transfer $50 to savings"
+
+Should create:
+- Trigger: New transaction - tracking_start_date: "${currentDateInfo.thisWeekend.saturday}", tracking_end_date: "${currentDateInfo.thisWeekend.sunday}"
+- Condition: Spending threshold (> $100 on Amazon) with timeWindow: {"start": "${currentDateInfo.thisWeekend.saturday}", "end": "${currentDateInfo.thisWeekend.sunday}"}
+- Action: Transfer ($50 to savings) - tracking_start_date: "${currentDateInfo.thisWeekend.saturday}", tracking_end_date: "${currentDateInfo.thisWeekend.sunday}"
 
 Respond ONLY with a valid JSON workflow object.
 `;

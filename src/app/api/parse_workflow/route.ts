@@ -3,7 +3,7 @@ import { parseWorkflowText } from "@/utils/workflowParser";
 import { validateWorkflow } from "@/utils/workflowValidator";
 
 export async function POST(req: NextRequest) {
-  const { text, userReprompt } = await req.json();
+  const { text, userReprompt, currentWorkflow, availableAccounts } = await req.json();
 
   if (!text) {
     return NextResponse.json({ error: "Missing input text" }, { status: 400 });
@@ -11,13 +11,17 @@ export async function POST(req: NextRequest) {
 
   console.log("--- Workflow API Route: Processing request ---");
   console.log("Input text:", text);
+  console.log("Available accounts:", availableAccounts);
   if (userReprompt) {
     console.log("User reprompt:", userReprompt);
+  }
+  if (currentWorkflow) {
+    console.log("Current workflow:", JSON.stringify(currentWorkflow, null, 2));
   }
 
   try {
     console.log("--- Workflow API Route: Calling parseWorkflowText ---");
-    const workflow = await parseWorkflowText(text, userReprompt);
+    const workflow = await parseWorkflowText(text, userReprompt, currentWorkflow, availableAccounts);
     console.log("--- Workflow API Route: parseWorkflowText completed ---");
     console.log("Parsed workflow:", JSON.stringify(workflow, null, 2));
 
