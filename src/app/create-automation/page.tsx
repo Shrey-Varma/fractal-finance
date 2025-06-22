@@ -4,29 +4,61 @@ import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
+interface TriggerBlock {
+  id: string;
+  name?: string;
+  type: string; // triggerType from schema
+  account?: string;
+  tracking_start_date?: string;
+  tracking_end_date?: string;
+  schedule?: {
+    frequency?: string;
+    dayOfWeek?: string;
+    dayOfMonth?: number;
+    time?: string;
+  };
+  threshold?: {
+    amount?: number;
+    operator?: string;
+  };
+}
+
+interface CriteriaBlock {
+  id: string;
+  name?: string;
+  conditionType?: string;
+  account?: string;
+  merchant?: string;
+  category?: string;
+  amount?: number;
+  operator?: string;
+  tracking_start_date?: string;
+  tracking_end_date?: string;
+  timeWindow?: {
+    start?: string;
+    end?: string;
+    duration?: string;
+  };
+}
+
+interface ActionBlock {
+  id: string;
+  name?: string;
+  type: string; // actionType from schema
+  fromAccount?: string;
+  toAccount?: string;
+  amount?: number;
+  percentage?: number;
+  message?: string;
+  notificationType?: string;
+  tracking_start_date?: string;
+  tracking_end_date?: string;
+}
+
 interface AutomationRule {
-  trigger: {
-    type: string;
-    account: string;
-  };
-  criteria?: {
-    merchant?: string;
-    category?: string;
-    amount_greater_than?: number;
-    amount_less_than?: number;
-    tracking_duration?: string;
-  };
-  action: {
-    type: string;
-    from_account?: string;
-    to_account?: string;
-    dollar_amount?: number;
-    percent_amount?: number;
-    message?: string;
-    frequency?: {
-      day_of_week?: string;
-    };
-  };
+  triggers: TriggerBlock[];
+  criteria: CriteriaBlock[];
+  actions: ActionBlock[];
 }
 
 interface Message {
@@ -56,8 +88,9 @@ export default function CreateAutomationPage() {
     } else {
       // Initialize with a basic rule structure
       setCurrentRule({
-        trigger: { type: 'new_transaction', account: '' },
-        action: { type: 'transfer' }
+        triggers: [{ id: '1', type: 'new_transaction', account: '' }],
+        criteria: [],
+        actions: [{ id: '1', type: 'transfer' }]
       });
     }
   }, []);
@@ -65,6 +98,144 @@ export default function CreateAutomationPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const convertWorkflowToRule = (workflow: any): AutomationRule => {
+    if (!workflow || !workflow.nodes) {
+      return {
+        triggers: [],
+        criteria: [],
+        actions: []
+      };
+    }
+
+    const triggers: TriggerBlock[] = [];
+    const criteria: CriteriaBlock[] = [];
+    const actions: ActionBlock[] = [];
+
+    workflow.nodes.forEach((node: any) => {
+      if (node.type === 'trigger') {
+        triggers.push({
+          id: node.id,
+          name: node.name,
+          type: node.config?.triggerType || 'new_transaction',
+          account: node.config?.account,
+          tracking_start_date: node.config?.tracking_start_date,
+          tracking_end_date: node.config?.tracking_end_date,
+          schedule: node.config?.schedule,
+          threshold: node.config?.threshold
+        });
+      } else if (node.type === 'condition') {
+        criteria.push({
+          id: node.id,
+          name: node.name,
+          conditionType: node.config?.conditionType,
+          account: node.config?.account,
+          merchant: node.config?.merchant,
+          category: node.config?.category,
+          amount: node.config?.amount,
+          operator: node.config?.operator,
+          tracking_start_date: node.config?.tracking_start_date,
+          tracking_end_date: node.config?.tracking_end_date,
+          timeWindow: node.config?.timeWindow
+        });
+      } else if (node.type === 'action') {
+        actions.push({
+          id: node.id,
+          name: node.name,
+          type: node.config?.actionType || 'transfer',
+          fromAccount: node.config?.fromAccount,
+          toAccount: node.config?.toAccount,
+          amount: node.config?.amount,
+          percentage: node.config?.percentage,
+          message: node.config?.message,
+          notificationType: node.config?.notificationType,
+          tracking_start_date: node.config?.tracking_start_date,
+          tracking_end_date: node.config?.tracking_end_date
+        });
+      }
+    });
+
+    return {
+      triggers: triggers.length > 0 ? triggers : [{ id: '1', type: 'new_transaction', account: '' }],
+      criteria,
+      actions: actions.length > 0 ? actions : [{ id: '1', type: 'transfer' }]
+    };
+  };
+
+  const convertRuleToWorkflow = (rule: AutomationRule): any => {
+    const nodes: any[] = [];
+    let nodeCounter = 1;
+
+    // Add trigger nodes
+    rule.triggers?.forEach((trigger) => {
+      nodes.push({
+        id: trigger.id,
+        type: 'trigger',
+        name: trigger.name || `Trigger ${nodeCounter++}`,
+        position: { x: 100, y: 100 },
+        enabled: true,
+        config: {
+          triggerType: trigger.type,
+          account: trigger.account,
+          tracking_start_date: trigger.tracking_start_date,
+          tracking_end_date: trigger.tracking_end_date,
+          schedule: trigger.schedule,
+          threshold: trigger.threshold
+        }
+      });
+    });
+
+    // Add condition nodes
+    rule.criteria?.forEach((criteria) => {
+      nodes.push({
+        id: criteria.id,
+        type: 'condition',
+        name: criteria.name || `Condition ${nodeCounter++}`,
+        position: { x: 300, y: 100 },
+        enabled: true,
+        config: {
+          conditionType: criteria.conditionType || 'amount_range',
+          account: criteria.account,
+          merchant: criteria.merchant,
+          category: criteria.category,
+          amount: criteria.amount,
+          operator: criteria.operator,
+          tracking_start_date: criteria.tracking_start_date,
+          tracking_end_date: criteria.tracking_end_date,
+          timeWindow: criteria.timeWindow
+        }
+      });
+    });
+
+    // Add action nodes
+    rule.actions?.forEach((action) => {
+      nodes.push({
+        id: action.id,
+        type: 'action',
+        name: action.name || `Action ${nodeCounter++}`,
+        position: { x: 500, y: 100 },
+        enabled: true,
+        config: {
+          actionType: action.type,
+          fromAccount: action.fromAccount,
+          toAccount: action.toAccount,
+          amount: action.amount,
+          percentage: action.percentage,
+          message: action.message,
+          notificationType: action.notificationType,
+          tracking_start_date: action.tracking_start_date,
+          tracking_end_date: action.tracking_end_date
+        }
+      });
+    });
+
+    return {
+      id: 'workflow-1',
+      name: 'Generated Workflow',
+      nodes,
+      connections: []
+    };
+  };
 
   const handleSendMessage = async (text?: string) => {
     const messageText = text || inputText.trim();
@@ -82,10 +253,13 @@ export default function CreateAutomationPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/parse_rule', {
+      const response = await fetch('/api/parse_workflow', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: messageText })
+        body: JSON.stringify({ 
+          text: messageText,
+          currentWorkflow: currentRule ? convertRuleToWorkflow(currentRule) : null
+        })
       });
 
       const data = await response.json();
@@ -95,11 +269,13 @@ export default function CreateAutomationPage() {
           id: (Date.now() + 1).toString(),
           type: 'assistant',
           content: "I've updated your automation based on your description!",
-          rule: data.rule,
+          rule: convertWorkflowToRule(data.workflow),
           timestamp: new Date()
         };
         setMessages(prev => [...prev, assistantMessage]);
-        setCurrentRule(data.rule);
+        // Convert workflow format to our rule format
+        const normalizedRule = convertWorkflowToRule(data.workflow);
+        setCurrentRule(normalizedRule);
       } else {
         throw new Error(data.error || 'Failed to create automation');
       }
@@ -116,20 +292,94 @@ export default function CreateAutomationPage() {
     }
   };
 
-  const updateRule = (path: string, value: any) => {
+  const addTrigger = () => {
     if (!currentRule) return;
-    
-    const newRule = { ...currentRule };
-    const keys = path.split('.');
-    let current: any = newRule;
-    
-    for (let i = 0; i < keys.length - 1; i++) {
-      if (!current[keys[i]]) current[keys[i]] = {};
-      current = current[keys[i]];
-    }
-    
-    current[keys[keys.length - 1]] = value;
-    setCurrentRule(newRule);
+    const newTrigger: TriggerBlock = {
+      id: Date.now().toString(),
+      type: 'new_transaction',
+      account: ''
+    };
+    setCurrentRule({
+      ...currentRule,
+      triggers: [...(currentRule.triggers || []), newTrigger]
+    });
+  };
+
+  const addCriteria = () => {
+    if (!currentRule) return;
+    const newCriteria: CriteriaBlock = {
+      id: Date.now().toString()
+    };
+    setCurrentRule({
+      ...currentRule,
+      criteria: [...(currentRule.criteria || []), newCriteria]
+    });
+  };
+
+  const addAction = () => {
+    if (!currentRule) return;
+    const newAction: ActionBlock = {
+      id: Date.now().toString(),
+      type: 'transfer'
+    };
+    setCurrentRule({
+      ...currentRule,
+      actions: [...(currentRule.actions || []), newAction]
+    });
+  };
+
+  const updateTrigger = (id: string, field: string, value: any) => {
+    if (!currentRule || !currentRule.triggers) return;
+    setCurrentRule({
+      ...currentRule,
+      triggers: currentRule.triggers.map(trigger =>
+        trigger.id === id ? { ...trigger, [field]: value } : trigger
+      )
+    });
+  };
+
+  const updateCriteria = (id: string, field: string, value: any) => {
+    if (!currentRule || !currentRule.criteria) return;
+    setCurrentRule({
+      ...currentRule,
+      criteria: currentRule.criteria.map(criteria =>
+        criteria.id === id ? { ...criteria, [field]: value } : criteria
+      )
+    });
+  };
+
+  const updateAction = (id: string, field: string, value: any) => {
+    if (!currentRule || !currentRule.actions) return;
+    setCurrentRule({
+      ...currentRule,
+      actions: currentRule.actions.map(action =>
+        action.id === id ? { ...action, [field]: value } : action
+      )
+    });
+  };
+
+  const deleteTrigger = (id: string) => {
+    if (!currentRule || !currentRule.triggers) return;
+    setCurrentRule({
+      ...currentRule,
+      triggers: currentRule.triggers.filter(trigger => trigger.id !== id)
+    });
+  };
+
+  const deleteCriteria = (id: string) => {
+    if (!currentRule || !currentRule.criteria) return;
+    setCurrentRule({
+      ...currentRule,
+      criteria: currentRule.criteria.filter(criteria => criteria.id !== id)
+    });
+  };
+
+  const deleteAction = (id: string) => {
+    if (!currentRule || !currentRule.actions) return;
+    setCurrentRule({
+      ...currentRule,
+      actions: currentRule.actions.filter(action => action.id !== id)
+    });
   };
 
   const EditableField = ({ 
@@ -204,23 +454,32 @@ export default function CreateAutomationPage() {
     );
   };
 
-  const renderTriggerBlock = () => (
-    <div className="automation-block bg-gradient-to-br from-blue-100 to-blue-200 border-2 border-blue-300 hover:from-blue-150 hover:to-blue-250">
+  const renderTriggerBlock = (trigger: TriggerBlock) => (
+    <div key={trigger.id} className="automation-block bg-gradient-to-br from-blue-100 to-blue-200 border-2 border-blue-300 hover:from-blue-150 hover:to-blue-250 mb-4">
       <div className="flex items-center mb-4">
         <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mr-3">
           <span className="text-white text-lg">⚡</span>
         </div>
         <span className="font-bold text-blue-900 text-lg">Trigger</span>
+        {currentRule && currentRule.triggers && currentRule.triggers.length > 1 && (
+          <button
+            onClick={() => deleteTrigger(trigger.id)}
+            className="ml-auto w-6 h-6 bg-red-500 bg-opacity-70 rounded-full flex items-center justify-center hover:bg-opacity-90 transition-all text-white text-xs"
+            title="Delete trigger"
+          >
+            ✕
+          </button>
+        )}
       </div>
       
       <div className="space-y-3 text-blue-800">
         <div className="flex items-center">
-          <span className="text-sm font-medium mr-2">When:</span>
+          <span className="text-sm font-medium mr-2">Type:</span>
           <EditableField
-            value={currentRule?.trigger.type.replace('_', ' ')}
-            onSave={(value) => updateRule('trigger.type', value.replace(' ', '_'))}
+            value={trigger.type}
+            onSave={(value) => updateTrigger(trigger.id, 'type', value)}
             type="select"
-            options={['new transaction', 'income received', 'tracking']}
+            options={['scheduled', 'new_transaction', 'income_received', 'balance_threshold']}
             placeholder="Select trigger type"
           />
         </div>
@@ -228,112 +487,249 @@ export default function CreateAutomationPage() {
         <div className="flex items-center">
           <span className="text-sm font-medium mr-2">Account:</span>
           <EditableField
-            value={currentRule?.trigger.account}
-            onSave={(value) => updateRule('trigger.account', value)}
+            value={trigger.account}
+            onSave={(value) => updateTrigger(trigger.id, 'account', value)}
             placeholder="Enter account name"
+          />
+        </div>
+
+        {trigger.type === 'scheduled' && (
+          <>
+            <div className="flex items-center">
+              <span className="text-sm font-medium mr-2">Frequency:</span>
+              <EditableField
+                value={trigger.schedule?.frequency}
+                onSave={(value) => updateTrigger(trigger.id, 'schedule', { ...trigger.schedule, frequency: value })}
+                type="select"
+                options={['daily', 'weekly', 'monthly']}
+                placeholder="Select frequency"
+              />
+            </div>
+            
+            {trigger.schedule?.frequency === 'weekly' && (
+              <div className="flex items-center">
+                <span className="text-sm font-medium mr-2">Day:</span>
+                <EditableField
+                  value={trigger.schedule?.dayOfWeek}
+                  onSave={(value) => updateTrigger(trigger.id, 'schedule', { ...trigger.schedule, dayOfWeek: value })}
+                  type="select"
+                  options={['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Any']}
+                  placeholder="Select day"
+                />
+              </div>
+            )}
+
+            {trigger.schedule?.frequency === 'monthly' && (
+              <div className="flex items-center">
+                <span className="text-sm font-medium mr-2">Day of Month:</span>
+                <EditableField
+                  value={trigger.schedule?.dayOfMonth}
+                  onSave={(value) => updateTrigger(trigger.id, 'schedule', { ...trigger.schedule, dayOfMonth: parseInt(value) })}
+                  type="number"
+                  placeholder="1-31"
+                />
+              </div>
+            )}
+
+            <div className="flex items-center">
+              <span className="text-sm font-medium mr-2">Time:</span>
+              <EditableField
+                value={trigger.schedule?.time}
+                onSave={(value) => updateTrigger(trigger.id, 'schedule', { ...trigger.schedule, time: value })}
+                placeholder="HH:MM"
+              />
+            </div>
+          </>
+        )}
+
+        {trigger.type === 'balance_threshold' && (
+          <>
+            <div className="flex items-center">
+              <span className="text-sm font-medium mr-2">Operator:</span>
+              <EditableField
+                value={trigger.threshold?.operator}
+                onSave={(value) => updateTrigger(trigger.id, 'threshold', { ...trigger.threshold, operator: value })}
+                type="select"
+                options={['greater_than', 'less_than', 'equals']}
+                placeholder="Select operator"
+              />
+            </div>
+            
+            <div className="flex items-center">
+              <span className="text-sm font-medium mr-2">Amount $:</span>
+              <EditableField
+                value={trigger.threshold?.amount}
+                onSave={(value) => updateTrigger(trigger.id, 'threshold', { ...trigger.threshold, amount: parseFloat(value) })}
+                type="number"
+                placeholder="Enter amount"
+              />
+            </div>
+          </>
+        )}
+
+        <div className="flex items-center">
+          <span className="text-sm font-medium mr-2">Start Date:</span>
+          <EditableField
+            value={trigger.tracking_start_date}
+            onSave={(value) => updateTrigger(trigger.id, 'tracking_start_date', value)}
+            placeholder="YYYY-MM-DD"
+          />
+        </div>
+
+        <div className="flex items-center">
+          <span className="text-sm font-medium mr-2">End Date:</span>
+          <EditableField
+            value={trigger.tracking_end_date}
+            onSave={(value) => updateTrigger(trigger.id, 'tracking_end_date', value)}
+            placeholder="YYYY-MM-DD"
           />
         </div>
       </div>
     </div>
   );
 
-  const renderCriteriaBlock = () => (
-    <div className="automation-block bg-gradient-to-br from-yellow-100 to-yellow-200 border-2 border-yellow-300 hover:from-yellow-150 hover:to-yellow-250">
+  const renderCriteriaBlock = (criteria: CriteriaBlock) => (
+    <div key={criteria.id} className="automation-block bg-gradient-to-br from-yellow-100 to-yellow-200 border-2 border-yellow-300 hover:from-yellow-150 hover:to-yellow-250 mb-4">
       <div className="flex items-center mb-4">
         <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center mr-3">
           <span className="text-white text-lg">🔍</span>
         </div>
-        <div className="flex-1 flex items-center justify-between">
-          <span className="font-bold text-yellow-900 text-lg">Criteria</span>
-          <button
-            onClick={() => {
-              if (currentRule?.criteria) {
-                const newRule = { ...currentRule };
-                delete newRule.criteria;
-                setCurrentRule(newRule);
-              } else {
-                updateRule('criteria', {});
-              }
-            }}
-            className="text-xs bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600 transition-colors"
-          >
-            {currentRule?.criteria ? 'Remove' : 'Add'}
-          </button>
-        </div>
+        <span className="font-bold text-yellow-900 text-lg">Criteria</span>
+        <button
+          onClick={() => deleteCriteria(criteria.id)}
+          className="ml-auto w-6 h-6 bg-red-500 bg-opacity-70 rounded-full flex items-center justify-center hover:bg-opacity-90 transition-all text-white text-xs"
+          title="Delete criteria"
+        >
+          ✕
+        </button>
       </div>
       
-      {currentRule?.criteria && (
-        <div className="space-y-3 text-yellow-800">
+      <div className="space-y-3 text-yellow-800">
+        <div className="flex items-center">
+          <span className="text-sm font-medium mr-2">Type:</span>
+          <EditableField
+            value={criteria.conditionType}
+            onSave={(value) => updateCriteria(criteria.id, 'conditionType', value)}
+            type="select"
+            options={['spending_threshold', 'balance_check', 'merchant_filter', 'category_filter', 'amount_range']}
+            placeholder="Select condition type"
+          />
+        </div>
+
+        {criteria.conditionType === 'merchant_filter' && (
           <div className="flex items-center">
             <span className="text-sm font-medium mr-2">Merchant:</span>
             <EditableField
-              value={currentRule.criteria.merchant}
-              onSave={(value) => updateRule('criteria.merchant', value)}
-              placeholder="Any merchant"
+              value={criteria.merchant}
+              onSave={(value) => updateCriteria(criteria.id, 'merchant', value)}
+              placeholder="Enter merchant name"
             />
           </div>
-          
+        )}
+        
+        {criteria.conditionType === 'category_filter' && (
           <div className="flex items-center">
             <span className="text-sm font-medium mr-2">Category:</span>
             <EditableField
-              value={currentRule.criteria.category}
-              onSave={(value) => updateRule('criteria.category', value)}
-              placeholder="Any category"
+              value={criteria.category}
+              onSave={(value) => updateCriteria(criteria.id, 'category', value)}
+              placeholder="Enter category"
             />
           </div>
-          
-          <div className="flex items-center">
-            <span className="text-sm font-medium mr-2">Min $:</span>
-            <EditableField
-              value={currentRule.criteria.amount_greater_than}
-              onSave={(value) => updateRule('criteria.amount_greater_than', value)}
-              type="number"
-              placeholder="0"
-            />
-          </div>
-          
-          <div className="flex items-center">
-            <span className="text-sm font-medium mr-2">Max $:</span>
-            <EditableField
-              value={currentRule.criteria.amount_less_than}
-              onSave={(value) => updateRule('criteria.amount_less_than', value)}
-              type="number"
-              placeholder="∞"
-            />
-          </div>
+        )}
+        
+        {(criteria.conditionType === 'spending_threshold' || criteria.conditionType === 'balance_check' || criteria.conditionType === 'amount_range') && (
+          <>
+            <div className="flex items-center">
+              <span className="text-sm font-medium mr-2">Operator:</span>
+              <EditableField
+                value={criteria.operator}
+                onSave={(value) => updateCriteria(criteria.id, 'operator', value)}
+                type="select"
+                options={['greater_than', 'less_than', 'equals']}
+                placeholder="Select operator"
+              />
+            </div>
+            
+            <div className="flex items-center">
+              <span className="text-sm font-medium mr-2">Amount $:</span>
+              <EditableField
+                value={criteria.amount}
+                onSave={(value) => updateCriteria(criteria.id, 'amount', value)}
+                type="number"
+                placeholder="Enter amount"
+              />
+            </div>
+          </>
+        )}
+
+        <div className="flex items-center">
+          <span className="text-sm font-medium mr-2">Account:</span>
+          <EditableField
+            value={criteria.account}
+            onSave={(value) => updateCriteria(criteria.id, 'account', value)}
+            placeholder="Any account"
+          />
         </div>
-      )}
+
+        <div className="flex items-center">
+          <span className="text-sm font-medium mr-2">Start Date:</span>
+          <EditableField
+            value={criteria.tracking_start_date}
+            onSave={(value) => updateCriteria(criteria.id, 'tracking_start_date', value)}
+            placeholder="YYYY-MM-DD"
+          />
+        </div>
+
+        <div className="flex items-center">
+          <span className="text-sm font-medium mr-2">End Date:</span>
+          <EditableField
+            value={criteria.tracking_end_date}
+            onSave={(value) => updateCriteria(criteria.id, 'tracking_end_date', value)}
+            placeholder="YYYY-MM-DD"
+          />
+        </div>
+      </div>
     </div>
   );
 
-  const renderActionBlock = () => (
-    <div className="automation-block bg-gradient-to-br from-green-100 to-green-200 border-2 border-green-300 hover:from-green-150 hover:to-green-250">
+  const renderActionBlock = (action: ActionBlock) => (
+    <div key={action.id} className="automation-block bg-gradient-to-br from-green-100 to-green-200 border-2 border-green-300 hover:from-green-150 hover:to-green-250 mb-4">
       <div className="flex items-center mb-4">
         <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-3">
           <span className="text-white text-lg">🎯</span>
         </div>
         <span className="font-bold text-green-900 text-lg">Action</span>
+        {currentRule && currentRule.actions && currentRule.actions.length > 1 && (
+          <button
+            onClick={() => deleteAction(action.id)}
+            className="ml-auto w-6 h-6 bg-red-500 bg-opacity-70 rounded-full flex items-center justify-center hover:bg-opacity-90 transition-all text-white text-xs"
+            title="Delete action"
+          >
+            ✕
+          </button>
+        )}
       </div>
       
       <div className="space-y-3 text-green-800">
         <div className="flex items-center">
           <span className="text-sm font-medium mr-2">Do:</span>
           <EditableField
-            value={currentRule?.action.type}
-            onSave={(value) => updateRule('action.type', value)}
+            value={action.type}
+            onSave={(value) => updateAction(action.id, 'type', value)}
             type="select"
             options={['transfer', 'notify']}
             placeholder="Select action"
           />
         </div>
         
-        {currentRule?.action.type === 'transfer' && (
+        {action.type === 'transfer' && (
           <>
             <div className="flex items-center">
               <span className="text-sm font-medium mr-2">From:</span>
               <EditableField
-                value={currentRule.action.from_account}
-                onSave={(value) => updateRule('action.from_account', value)}
+                value={action.fromAccount}
+                onSave={(value) => updateAction(action.id, 'fromAccount', value)}
                 placeholder="Source account"
               />
             </div>
@@ -341,8 +737,8 @@ export default function CreateAutomationPage() {
             <div className="flex items-center">
               <span className="text-sm font-medium mr-2">To:</span>
               <EditableField
-                value={currentRule.action.to_account}
-                onSave={(value) => updateRule('action.to_account', value)}
+                value={action.toAccount}
+                onSave={(value) => updateAction(action.id, 'toAccount', value)}
                 placeholder="Destination account"
               />
             </div>
@@ -350,8 +746,8 @@ export default function CreateAutomationPage() {
             <div className="flex items-center">
               <span className="text-sm font-medium mr-2">Amount $:</span>
               <EditableField
-                value={currentRule.action.dollar_amount}
-                onSave={(value) => updateRule('action.dollar_amount', value)}
+                value={action.amount}
+                onSave={(value) => updateAction(action.id, 'amount', value)}
                 type="number"
                 placeholder="Fixed amount"
               />
@@ -360,8 +756,8 @@ export default function CreateAutomationPage() {
             <div className="flex items-center">
               <span className="text-sm font-medium mr-2">Or %:</span>
               <EditableField
-                value={currentRule.action.percent_amount}
-                onSave={(value) => updateRule('action.percent_amount', value)}
+                value={action.percentage}
+                onSave={(value) => updateAction(action.id, 'percentage', value)}
                 type="number"
                 placeholder="Percentage"
               />
@@ -369,12 +765,45 @@ export default function CreateAutomationPage() {
           </>
         )}
         
-        {currentRule?.action.type === 'notify' && (
+        {action.type === 'notify' && (
+          <>
+            <div className="flex items-center">
+              <span className="text-sm font-medium mr-2">Type:</span>
+              <EditableField
+                value={action.notificationType}
+                onSave={(value) => updateAction(action.id, 'notificationType', value)}
+                type="select"
+                options={['email', 'sms', 'push', 'in_app']}
+                placeholder="Select notification type"
+              />
+            </div>
+          </>
+        )}
+
+        <div className="flex items-center">
+          <span className="text-sm font-medium mr-2">Start Date:</span>
+          <EditableField
+            value={action.tracking_start_date}
+            onSave={(value) => updateAction(action.id, 'tracking_start_date', value)}
+            placeholder="YYYY-MM-DD"
+          />
+        </div>
+
+        <div className="flex items-center">
+          <span className="text-sm font-medium mr-2">End Date:</span>
+          <EditableField
+            value={action.tracking_end_date}
+            onSave={(value) => updateAction(action.id, 'tracking_end_date', value)}
+            placeholder="YYYY-MM-DD"
+          />
+        </div>
+        
+        {action.type === 'notify' && (
           <div className="flex items-center">
             <span className="text-sm font-medium mr-2">Message:</span>
             <EditableField
-              value={currentRule.action.message}
-              onSave={(value) => updateRule('action.message', value)}
+              value={action.message}
+              onSave={(value) => updateAction(action.id, 'message', value)}
               placeholder="Notification message"
             />
           </div>
@@ -482,46 +911,99 @@ export default function CreateAutomationPage() {
           </div>
         )}
 
-        {/* Main Automation Workflow */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Build Your Automation</h1>
-            <p className="text-gray-600">Click on any field below to edit it directly</p>
-          </div>
-
-          {/* Automation Blocks */}
-          <div className="flex items-center justify-center space-x-8 mb-8 overflow-x-auto pb-4">
-            {renderTriggerBlock()}
-            
-            {/* Arrow */}
-            <div className="flex items-center">
-              <div className="w-12 h-1 bg-gradient-to-r from-blue-300 to-yellow-300 rounded"></div>
-              <div className="text-gray-400 text-3xl mx-2">→</div>
-              <div className="w-12 h-1 bg-gradient-to-r from-blue-300 to-yellow-300 rounded"></div>
+                  {/* Main Automation Workflow */}
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8">
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Build Your Automation</h1>
+              <p className="text-gray-600">Click on any field to edit it directly, or add more blocks</p>
             </div>
 
-            {renderCriteriaBlock()}
-            
-            {/* Arrow */}
-            <div className="flex items-center">
-              <div className="w-12 h-1 bg-gradient-to-r from-yellow-300 to-green-300 rounded"></div>
-              <div className="text-gray-400 text-3xl mx-2">→</div>
-              <div className="w-12 h-1 bg-gradient-to-r from-yellow-300 to-green-300 rounded"></div>
+            {/* Add Block Buttons */}
+            <div className="flex justify-center space-x-4 mb-8">
+              <button
+                onClick={addTrigger}
+                className="flex items-center space-x-2 bg-blue-100 hover:bg-blue-200 text-blue-800 px-4 py-2 rounded-lg transition-all duration-200 font-medium"
+              >
+                <span>⚡</span>
+                <span>Add Trigger</span>
+              </button>
+              <button
+                onClick={addCriteria}
+                className="flex items-center space-x-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-4 py-2 rounded-lg transition-all duration-200 font-medium"
+              >
+                <span>🔍</span>
+                <span>Add Criteria</span>
+              </button>
+              <button
+                onClick={addAction}
+                className="flex items-center space-x-2 bg-green-100 hover:bg-green-200 text-green-800 px-4 py-2 rounded-lg transition-all duration-200 font-medium"
+              >
+                <span>🎯</span>
+                <span>Add Action</span>
+              </button>
             </div>
 
-            {renderActionBlock()}
-          </div>
+            {/* Automation Blocks in Columns */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+              {/* Triggers Column */}
+              <div className="space-y-4">
+                <div className="text-center">
+                  <h2 className="text-xl font-bold text-blue-900 mb-2">Triggers</h2>
+                  <p className="text-sm text-blue-600">When should this automation run?</p>
+                </div>
+                {currentRule?.triggers?.map(trigger => renderTriggerBlock(trigger))}
+                {(!currentRule?.triggers || currentRule.triggers.length === 0) && (
+                  <div className="text-center text-gray-500 py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                    <span className="text-4xl mb-2 block">⚡</span>
+                    <p>No triggers yet</p>
+                    <p className="text-sm">Click "Add Trigger" above</p>
+                  </div>
+                )}
+              </div>
 
-          {/* Rule Preview */}
-          <div className="bg-gray-50 rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Automation Preview</h3>
-            <div className="bg-white rounded-lg p-4 border">
-              <pre className="text-sm text-gray-700 whitespace-pre-wrap overflow-x-auto">
-                {JSON.stringify(currentRule, null, 2)}
-              </pre>
+              {/* Criteria Column */}
+              <div className="space-y-4">
+                <div className="text-center">
+                  <h2 className="text-xl font-bold text-yellow-900 mb-2">Criteria</h2>
+                  <p className="text-sm text-yellow-600">What conditions should be met?</p>
+                </div>
+                {currentRule?.criteria?.map(criteria => renderCriteriaBlock(criteria))}
+                {(!currentRule?.criteria || currentRule.criteria.length === 0) && (
+                  <div className="text-center text-gray-500 py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                    <span className="text-4xl mb-2 block">🔍</span>
+                    <p>No criteria yet</p>
+                    <p className="text-sm">Click "Add Criteria" above</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Actions Column */}
+              <div className="space-y-4">
+                <div className="text-center">
+                  <h2 className="text-xl font-bold text-green-900 mb-2">Actions</h2>
+                  <p className="text-sm text-green-600">What should happen?</p>
+                </div>
+                {currentRule?.actions?.map(action => renderActionBlock(action))}
+                {(!currentRule?.actions || currentRule.actions.length === 0) && (
+                  <div className="text-center text-gray-500 py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                    <span className="text-4xl mb-2 block">🎯</span>
+                    <p>No actions yet</p>
+                    <p className="text-sm">Click "Add Action" above</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Rule Preview */}
+            <div className="bg-gray-50 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Automation Preview</h3>
+              <div className="bg-white rounded-lg p-4 border">
+                <pre className="text-sm text-gray-700 whitespace-pre-wrap overflow-x-auto">
+                  {JSON.stringify(currentRule, null, 2)}
+                </pre>
+              </div>
             </div>
           </div>
-        </div>
       </div>
     </div>
   );
