@@ -63,7 +63,6 @@ Create a workflow that matches this structure:
       "id": "node-id-1",
       "type": "trigger",
       "name": "Node name",
-      "position": {"x": 100, "y": 100},
       "config": {
         "triggerType": "scheduled|new_transaction|income_received|balance_threshold",
         "account": "account name",
@@ -80,7 +79,6 @@ Create a workflow that matches this structure:
       "id": "node-id-2", 
       "type": "condition",
       "name": "Condition name",
-      "position": {"x": 300, "y": 100},
       "config": {
         "conditionType": "spending_threshold|balance_check|merchant_filter|category_filter|amount_range",
         "account": "account name",
@@ -100,7 +98,6 @@ Create a workflow that matches this structure:
       "id": "node-id-3",
       "type": "action", 
       "name": "Action name",
-      "position": {"x": 500, "y": 100},
       "config": {
         "actionType": "transfer|notify|set_reminder",
         "fromAccount": "from account",
@@ -165,11 +162,6 @@ CONNECTION CONDITIONS:
 - always: Always execute next node
 - if_true: Execute if condition is true
 - if_false: Execute if condition is false
-
-POSITIONING:
-- Position nodes logically: triggers on left, conditions in middle, actions on right
-- Use x coordinates: 100, 300, 500, 700, etc.
-- Use y coordinates: 100, 200, 300, etc.
 
 EXAMPLES:
 
