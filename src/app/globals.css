@@ -100,4 +100,64 @@ body {
 /* Smooth transitions for all interactive elements */
 .smooth-transition {
   transition: all 0.2s ease-in-out;
+}
+
+/* Automation blocks styling */
+.automation-block {
+  padding: 20px;
+  border-radius: 16px;
+  min-width: 240px;
+  max-width: 280px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.automation-block::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 100%);
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  opacity: 0;
+}
+
+.automation-block:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.automation-block:hover::before {
+  opacity: 1;
+}
+
+.automation-block:active {
+  transform: translateY(-2px) scale(1.01);
+  transition: all 0.1s ease;
+}
+
+/* Enhanced gradient backgrounds for hover states */
+.automation-block.bg-gradient-to-br.from-blue-100.to-blue-200:hover {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+}
+
+.automation-block.bg-gradient-to-br.from-yellow-100.to-yellow-200:hover {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+}
+
+.automation-block.bg-gradient-to-br.from-green-100.to-green-200:hover {
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+}
+
+/* Editable field hover effects */
+.automation-block span[class*="cursor-pointer"]:hover {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(4px);
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  transform: scale(1.02);
 } 
