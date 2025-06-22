@@ -59,6 +59,8 @@ interface AutomationRule {
   triggers: TriggerBlock[];
   criteria: CriteriaBlock[];
   actions: ActionBlock[];
+  tracking_start_date?: string;
+  tracking_end_date?: string;
 }
 
 interface Message {
@@ -90,7 +92,9 @@ export default function CreateAutomationPage() {
       setCurrentRule({
         triggers: [{ id: '1', type: 'new_transaction', account: '' }],
         criteria: [],
-        actions: [{ id: '1', type: 'transfer' }]
+        actions: [{ id: '1', type: 'transfer' }],
+        tracking_start_date: '',
+        tracking_end_date: ''
       });
     }
   }, []);
@@ -125,19 +129,63 @@ export default function CreateAutomationPage() {
           threshold: node.config?.threshold
         });
       } else if (node.type === 'condition') {
-        criteria.push({
+        // Check if this condition has multiple condition types and split them
+        const baseCondition = {
           id: node.id,
           name: node.name,
-          conditionType: node.config?.conditionType,
           account: node.config?.account,
-          merchant: node.config?.merchant,
-          category: node.config?.category,
-          amount: node.config?.amount,
-          operator: node.config?.operator,
           tracking_start_date: node.config?.tracking_start_date,
           tracking_end_date: node.config?.tracking_end_date,
           timeWindow: node.config?.timeWindow
-        });
+        };
+
+        const hasAmount = node.config?.amount !== undefined && node.config?.operator;
+        const hasMerchant = node.config?.merchant;
+        const hasCategory = node.config?.category;
+        const conditionType = node.config?.conditionType;
+
+        // If we have a merchant/category filter AND amount/operator, split into two criteria
+        if ((hasMerchant || hasCategory) && hasAmount && conditionType !== 'amount_range') {
+          // Add merchant/category filter
+          if (hasMerchant) {
+            criteria.push({
+              ...baseCondition,
+              id: `${node.id}-merchant`,
+              name: `${node.name || 'Condition'} - Merchant Filter`,
+              conditionType: 'merchant_filter',
+              merchant: node.config?.merchant
+            });
+          }
+          if (hasCategory) {
+            criteria.push({
+              ...baseCondition,
+              id: `${node.id}-category`,
+              name: `${node.name || 'Condition'} - Category Filter`,
+              conditionType: 'category_filter',
+              category: node.config?.category
+            });
+          }
+          
+          // Add spending threshold
+          criteria.push({
+            ...baseCondition,
+            id: `${node.id}-threshold`,
+            name: `${node.name || 'Condition'} - Spending Threshold`,
+            conditionType: 'spending_threshold',
+            amount: node.config?.amount,
+            operator: node.config?.operator
+          });
+        } else {
+          // Single condition type
+          criteria.push({
+            ...baseCondition,
+            conditionType: node.config?.conditionType,
+            merchant: node.config?.merchant,
+            category: node.config?.category,
+            amount: node.config?.amount,
+            operator: node.config?.operator
+          });
+        }
       } else if (node.type === 'action') {
         actions.push({
           id: node.id,
@@ -155,10 +203,25 @@ export default function CreateAutomationPage() {
       }
     });
 
+    // Extract global dates from the first item that has tracking dates
+    let globalStartDate = '';
+    let globalEndDate = '';
+    
+    [...triggers, ...criteria, ...actions].forEach(item => {
+      if (item.tracking_start_date && !globalStartDate) {
+        globalStartDate = item.tracking_start_date;
+      }
+      if (item.tracking_end_date && !globalEndDate) {
+        globalEndDate = item.tracking_end_date;
+      }
+    });
+
     return {
       triggers: triggers.length > 0 ? triggers : [{ id: '1', type: 'new_transaction', account: '' }],
       criteria,
-      actions: actions.length > 0 ? actions : [{ id: '1', type: 'transfer' }]
+      actions: actions.length > 0 ? actions : [{ id: '1', type: 'transfer' }],
+      tracking_start_date: globalStartDate,
+      tracking_end_date: globalEndDate
     };
   };
 
@@ -330,32 +393,35 @@ export default function CreateAutomationPage() {
 
   const updateTrigger = (id: string, field: string, value: any) => {
     if (!currentRule || !currentRule.triggers) return;
-    setCurrentRule({
+    const updatedRule = {
       ...currentRule,
       triggers: currentRule.triggers.map(trigger =>
         trigger.id === id ? { ...trigger, [field]: value } : trigger
       )
-    });
+    };
+    setCurrentRule(syncGlobalDates(updatedRule));
   };
 
   const updateCriteria = (id: string, field: string, value: any) => {
     if (!currentRule || !currentRule.criteria) return;
-    setCurrentRule({
+    const updatedRule = {
       ...currentRule,
       criteria: currentRule.criteria.map(criteria =>
         criteria.id === id ? { ...criteria, [field]: value } : criteria
       )
-    });
+    };
+    setCurrentRule(syncGlobalDates(updatedRule));
   };
 
   const updateAction = (id: string, field: string, value: any) => {
     if (!currentRule || !currentRule.actions) return;
-    setCurrentRule({
+    const updatedRule = {
       ...currentRule,
       actions: currentRule.actions.map(action =>
         action.id === id ? { ...action, [field]: value } : action
       )
-    });
+    };
+    setCurrentRule(syncGlobalDates(updatedRule));
   };
 
   const deleteTrigger = (id: string) => {
@@ -380,6 +446,41 @@ export default function CreateAutomationPage() {
       ...currentRule,
       actions: currentRule.actions.filter(action => action.id !== id)
     });
+  };
+
+  const updateGlobalField = (field: string, value: any) => {
+    if (!currentRule) return;
+    setCurrentRule({
+      ...currentRule,
+      [field]: value
+    });
+  };
+
+  const syncGlobalDates = (rule: AutomationRule) => {
+    // Extract earliest start date and latest end date from all blocks
+    const allItems = [...(rule.triggers || []), ...(rule.criteria || []), ...(rule.actions || [])];
+    
+    let earliestStart = '';
+    let latestEnd = '';
+    
+    allItems.forEach(item => {
+      if (item.tracking_start_date) {
+        if (!earliestStart || item.tracking_start_date < earliestStart) {
+          earliestStart = item.tracking_start_date;
+        }
+      }
+      if (item.tracking_end_date) {
+        if (!latestEnd || item.tracking_end_date > latestEnd) {
+          latestEnd = item.tracking_end_date;
+        }
+      }
+    });
+
+    return {
+      ...rule,
+      tracking_start_date: earliestStart || rule.tracking_start_date,
+      tracking_end_date: latestEnd || rule.tracking_end_date
+    };
   };
 
   const EditableField = ({ 
@@ -567,23 +668,7 @@ export default function CreateAutomationPage() {
           </>
         )}
 
-        <div className="flex items-center">
-          <span className="text-sm font-medium mr-2">Start Date:</span>
-          <EditableField
-            value={trigger.tracking_start_date}
-            onSave={(value) => updateTrigger(trigger.id, 'tracking_start_date', value)}
-            placeholder="YYYY-MM-DD"
-          />
-        </div>
 
-        <div className="flex items-center">
-          <span className="text-sm font-medium mr-2">End Date:</span>
-          <EditableField
-            value={trigger.tracking_end_date}
-            onSave={(value) => updateTrigger(trigger.id, 'tracking_end_date', value)}
-            placeholder="YYYY-MM-DD"
-          />
-        </div>
       </div>
     </div>
   );
@@ -672,23 +757,7 @@ export default function CreateAutomationPage() {
           />
         </div>
 
-        <div className="flex items-center">
-          <span className="text-sm font-medium mr-2">Start Date:</span>
-          <EditableField
-            value={criteria.tracking_start_date}
-            onSave={(value) => updateCriteria(criteria.id, 'tracking_start_date', value)}
-            placeholder="YYYY-MM-DD"
-          />
-        </div>
 
-        <div className="flex items-center">
-          <span className="text-sm font-medium mr-2">End Date:</span>
-          <EditableField
-            value={criteria.tracking_end_date}
-            onSave={(value) => updateCriteria(criteria.id, 'tracking_end_date', value)}
-            placeholder="YYYY-MM-DD"
-          />
-        </div>
       </div>
     </div>
   );
@@ -744,24 +813,64 @@ export default function CreateAutomationPage() {
             </div>
             
             <div className="flex items-center">
-              <span className="text-sm font-medium mr-2">Amount $:</span>
-              <EditableField
-                value={action.amount}
-                onSave={(value) => updateAction(action.id, 'amount', value)}
-                type="number"
-                placeholder="Fixed amount"
-              />
+              <span className="text-sm font-medium mr-2">Amount Type:</span>
+              <button
+                onClick={() => {
+                  if (action.amount === undefined) {
+                    // Switch to fixed amount mode
+                    updateAction(action.id, 'percentage', undefined);
+                    updateAction(action.id, 'amount', 0);
+                  }
+                }}
+                className={`px-3 py-1 rounded text-xs font-medium transition-all ${
+                  action.amount !== undefined 
+                    ? 'bg-green-500 text-white' 
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                $ Fixed
+              </button>
+              <button
+                onClick={() => {
+                  if (action.percentage === undefined) {
+                    // Switch to percentage mode
+                    updateAction(action.id, 'amount', undefined);
+                    updateAction(action.id, 'percentage', 0);
+                  }
+                }}
+                className={`ml-2 px-3 py-1 rounded text-xs font-medium transition-all ${
+                  action.percentage !== undefined 
+                    ? 'bg-green-500 text-white' 
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                % Percent
+              </button>
             </div>
             
-            <div className="flex items-center">
-              <span className="text-sm font-medium mr-2">Or %:</span>
-              <EditableField
-                value={action.percentage}
-                onSave={(value) => updateAction(action.id, 'percentage', value)}
-                type="number"
-                placeholder="Percentage"
-              />
-            </div>
+            {action.amount !== undefined && (
+              <div className="flex items-center">
+                <span className="text-sm font-medium mr-2">Amount $:</span>
+                <EditableField
+                  value={action.amount}
+                  onSave={(value) => updateAction(action.id, 'amount', value)}
+                  type="number"
+                  placeholder="Enter amount"
+                />
+              </div>
+            )}
+            
+            {action.percentage !== undefined && (
+              <div className="flex items-center">
+                <span className="text-sm font-medium mr-2">Percentage %:</span>
+                <EditableField
+                  value={action.percentage}
+                  onSave={(value) => updateAction(action.id, 'percentage', value)}
+                  type="number"
+                  placeholder="Enter percentage"
+                />
+              </div>
+            )}
           </>
         )}
         
@@ -780,23 +889,7 @@ export default function CreateAutomationPage() {
           </>
         )}
 
-        <div className="flex items-center">
-          <span className="text-sm font-medium mr-2">Start Date:</span>
-          <EditableField
-            value={action.tracking_start_date}
-            onSave={(value) => updateAction(action.id, 'tracking_start_date', value)}
-            placeholder="YYYY-MM-DD"
-          />
-        </div>
 
-        <div className="flex items-center">
-          <span className="text-sm font-medium mr-2">End Date:</span>
-          <EditableField
-            value={action.tracking_end_date}
-            onSave={(value) => updateAction(action.id, 'tracking_end_date', value)}
-            placeholder="YYYY-MM-DD"
-          />
-        </div>
         
         {action.type === 'notify' && (
           <div className="flex items-center">
@@ -918,6 +1011,29 @@ export default function CreateAutomationPage() {
               <p className="text-gray-600">Click on any field to edit it directly, or add more blocks</p>
             </div>
 
+            {/* Global Date Fields */}
+            <div className="bg-gray-50 rounded-xl p-6 mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">Global Settings</h3>
+              <div className="flex justify-center space-x-8">
+                <div className="flex items-center">
+                  <span className="text-sm font-medium text-gray-700 mr-3">Start Date:</span>
+                  <EditableField
+                    value={currentRule?.tracking_start_date}
+                    onSave={(value) => updateGlobalField('tracking_start_date', value)}
+                    placeholder="YYYY-MM-DD"
+                  />
+                </div>
+                <div className="flex items-center">
+                  <span className="text-sm font-medium text-gray-700 mr-3">End Date:</span>
+                  <EditableField
+                    value={currentRule?.tracking_end_date}
+                    onSave={(value) => updateGlobalField('tracking_end_date', value)}
+                    placeholder="YYYY-MM-DD"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Add Block Buttons */}
             <div className="flex justify-center space-x-4 mb-8">
               <button
@@ -944,53 +1060,77 @@ export default function CreateAutomationPage() {
             </div>
 
             {/* Automation Blocks in Columns */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+            <div className="flex items-start justify-center space-x-4 mb-8 overflow-x-auto">
               {/* Triggers Column */}
-              <div className="space-y-4">
-                <div className="text-center">
+              <div className="flex-1 max-w-sm">
+                <div className="text-center mb-4">
                   <h2 className="text-xl font-bold text-blue-900 mb-2">Triggers</h2>
                   <p className="text-sm text-blue-600">When should this automation run?</p>
                 </div>
-                {currentRule?.triggers?.map(trigger => renderTriggerBlock(trigger))}
-                {(!currentRule?.triggers || currentRule.triggers.length === 0) && (
-                  <div className="text-center text-gray-500 py-8 border-2 border-dashed border-gray-300 rounded-lg">
-                    <span className="text-4xl mb-2 block">⚡</span>
-                    <p>No triggers yet</p>
-                    <p className="text-sm">Click "Add Trigger" above</p>
-                  </div>
-                )}
+                <div className="flex flex-col items-center space-y-4">
+                  {currentRule?.triggers?.map(trigger => renderTriggerBlock(trigger))}
+                  {(!currentRule?.triggers || currentRule.triggers.length === 0) && (
+                    <div className="text-center text-gray-500 py-8 border-2 border-dashed border-gray-300 rounded-lg w-full max-w-xs">
+                      <span className="text-4xl mb-2 block">⚡</span>
+                      <p>No triggers yet</p>
+                      <p className="text-sm">Click "Add Trigger" above</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Arrow 1 */}
+              <div className="flex items-center justify-center pt-16">
+                <div className="flex flex-col items-center">
+                  <div className="w-12 h-1 bg-gradient-to-r from-blue-400 to-yellow-400 rounded mb-1"></div>
+                  <div className="text-gray-400 text-2xl">→</div>
+                  <div className="w-12 h-1 bg-gradient-to-r from-blue-400 to-yellow-400 rounded mt-1"></div>
+                </div>
               </div>
 
               {/* Criteria Column */}
-              <div className="space-y-4">
-                <div className="text-center">
+              <div className="flex-1 max-w-sm">
+                <div className="text-center mb-4">
                   <h2 className="text-xl font-bold text-yellow-900 mb-2">Criteria</h2>
                   <p className="text-sm text-yellow-600">What conditions should be met?</p>
                 </div>
-                {currentRule?.criteria?.map(criteria => renderCriteriaBlock(criteria))}
-                {(!currentRule?.criteria || currentRule.criteria.length === 0) && (
-                  <div className="text-center text-gray-500 py-8 border-2 border-dashed border-gray-300 rounded-lg">
-                    <span className="text-4xl mb-2 block">🔍</span>
-                    <p>No criteria yet</p>
-                    <p className="text-sm">Click "Add Criteria" above</p>
-                  </div>
-                )}
+                <div className="flex flex-col items-center space-y-4">
+                  {currentRule?.criteria?.map(criteria => renderCriteriaBlock(criteria))}
+                  {(!currentRule?.criteria || currentRule.criteria.length === 0) && (
+                    <div className="text-center text-gray-500 py-8 border-2 border-dashed border-gray-300 rounded-lg w-full max-w-xs">
+                      <span className="text-4xl mb-2 block">🔍</span>
+                      <p>No criteria yet</p>
+                      <p className="text-sm">Click "Add Criteria" above</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Arrow 2 */}
+              <div className="flex items-center justify-center pt-16">
+                <div className="flex flex-col items-center">
+                  <div className="w-12 h-1 bg-gradient-to-r from-yellow-400 to-green-400 rounded mb-1"></div>
+                  <div className="text-gray-400 text-2xl">→</div>
+                  <div className="w-12 h-1 bg-gradient-to-r from-yellow-400 to-green-400 rounded mt-1"></div>
+                </div>
               </div>
 
               {/* Actions Column */}
-              <div className="space-y-4">
-                <div className="text-center">
+              <div className="flex-1 max-w-sm">
+                <div className="text-center mb-4">
                   <h2 className="text-xl font-bold text-green-900 mb-2">Actions</h2>
                   <p className="text-sm text-green-600">What should happen?</p>
                 </div>
-                {currentRule?.actions?.map(action => renderActionBlock(action))}
-                {(!currentRule?.actions || currentRule.actions.length === 0) && (
-                  <div className="text-center text-gray-500 py-8 border-2 border-dashed border-gray-300 rounded-lg">
-                    <span className="text-4xl mb-2 block">🎯</span>
-                    <p>No actions yet</p>
-                    <p className="text-sm">Click "Add Action" above</p>
-                  </div>
-                )}
+                <div className="flex flex-col items-center space-y-4">
+                  {currentRule?.actions?.map(action => renderActionBlock(action))}
+                  {(!currentRule?.actions || currentRule.actions.length === 0) && (
+                    <div className="text-center text-gray-500 py-8 border-2 border-dashed border-gray-300 rounded-lg w-full max-w-xs">
+                      <span className="text-4xl mb-2 block">🎯</span>
+                      <p>No actions yet</p>
+                      <p className="text-sm">Click "Add Action" above</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
