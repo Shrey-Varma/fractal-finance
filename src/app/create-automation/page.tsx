@@ -3,6 +3,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import DashboardLayout from '@/components/DashboardLayout';
+import { CodeBlock } from '@/components/ui/code-block';
+import { Button } from '@/components/ui/stateful-button';
 
 interface TriggerBlock {
   id: string;
@@ -1129,54 +1132,20 @@ export default function CreateAutomationPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <nav className="bg-white border-b border-gray-100 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              <Link href="/home" className="text-gray-600 hover:text-gray-900 smooth-transition">
-                ← Back to Dashboard
-              </Link>
-              <div className="text-2xl font-bold text-gray-900">
-                <span style={{ color: '#1c4587' }}>Automation Builder</span>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <input
-                type="text"
-                value={automationName}
-                onChange={(e) => setAutomationName(e.target.value)}
-                placeholder="Automation name"
-                className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                style={{ minWidth: '200px' }}
-              />
-              <Link
-                href="/automations"
-                className="btn-secondary text-sm inline-block text-center"
-              >
-                View Automations
-              </Link>
-              <button className="btn-primary" onClick={handleSaveAutomation} disabled={loading}>
-                {editingAutomationId ? 'Update Automation' : 'Save Automation'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
-
+    <DashboardLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
         {/* AI Assistant Chat */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 mb-8 slide-up">
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mr-3">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center mr-3" style={{ backgroundColor: '#1c458720' }}>
                     <span className="text-lg">🤖</span>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">AI Assistant</h3>
-                    <p className="text-sm text-gray-600">Describe changes to update your automation</p>
+                    <h3 className="font-semibold text-gray-900">Automation Agent</h3>
+                    <p className="text-sm text-gray-600">Intelligent automation builder and optimizer</p>
                   </div>
                 </div>
 
@@ -1186,7 +1155,7 @@ export default function CreateAutomationPage() {
             <div className="max-h-60 overflow-y-auto p-4 space-y-3">
               {messages.map((message) => (
                 <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-md ${message.type === 'user' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-900'} rounded-lg p-3 text-sm`}>
+                  <div className={`max-w-md ${message.type === 'user' ? 'text-white' : 'bg-gray-100 text-gray-900'} rounded-lg p-3 text-sm`} style={message.type === 'user' ? { backgroundColor: '#1c4587' } : {}}>
                     {message.content}
                   </div>
                 </div>
@@ -1214,14 +1183,17 @@ export default function CreateAutomationPage() {
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                   placeholder="Ask me to modify your automation..."
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 smooth-transition text-sm"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 smooth-transition text-sm"
+                  style={{ '--tw-ring-color': '#1c4587' } as React.CSSProperties & { [key: string]: string }}
                   disabled={loading}
                 />
                 <button
                   onClick={() => handleSendMessage()}
                   disabled={loading || !inputText.trim()}
-                  style={{ color: '#1c4587' }}
-                  className="hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed smooth-transition text-sm"
+                  className="text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed smooth-transition text-sm"
+                  style={{ backgroundColor: '#1c4587' }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#153a73'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1c4587'}
                 >
                   Send
                 </button>
@@ -1231,32 +1203,79 @@ export default function CreateAutomationPage() {
 
         {/* Main Automation Workflow */}
           <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8">
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                {editingAutomationId ? 'Edit Your Automation' : 'Build Your Automation'}
-              </h1>
-              <p className="text-gray-600">Click on any field to edit it directly, or add more blocks</p>
-            </div>
 
-            {/* Global Date Fields */}
-            <div className="bg-gray-50 rounded-xl p-6 mb-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">Global Settings</h3>
-              <div className="flex justify-center space-x-8">
+
+            {/* Global Settings */}
+            <div className="bg-white border border-gray-200 rounded-lg p-6 mb-8 shadow-sm">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <span className="text-sm font-medium text-gray-700 mr-3">Start Date:</span>
-                  <EditableField
-                    value={currentRule?.tracking_start_date}
-                    onSave={(value) => updateGlobalField('tracking_start_date', value)}
-                    placeholder="YYYY-MM-DD"
-                  />
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center mr-3" style={{ backgroundColor: '#1c4587' }}>
+                    <span className="text-white text-lg">⚙️</span>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Automation Settings</h3>
+                    <p className="text-sm text-gray-600">Configure your automation parameters</p>
+                  </div>
                 </div>
-                <div className="flex items-center">
-                  <span className="text-sm font-medium text-gray-700 mr-3">End Date:</span>
-                  <EditableField
-                    value={currentRule?.tracking_end_date}
-                    onSave={(value) => updateGlobalField('tracking_end_date', value)}
-                    placeholder="YYYY-MM-DD"
-                  />
+                
+                <div className="flex items-center space-x-4">
+                  {/* Automation Name */}
+                  <div className="flex flex-col">
+                    <label className="text-xs font-medium text-gray-500 mb-1">Automation Name</label>
+                    <input
+                      type="text"
+                      value={automationName}
+                      onChange={(e) => setAutomationName(e.target.value)}
+                      placeholder="Enter automation name"
+                      className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200"
+                      style={{ '--tw-ring-color': '#1c4587', minWidth: '200px' } as React.CSSProperties & { [key: string]: string }}
+                    />
+                  </div>
+
+                  {/* Start Date */}
+                  <div className="flex flex-col">
+                    <label className="text-xs font-medium text-gray-500 mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      value={currentRule?.tracking_start_date || ''}
+                      onChange={(e) => updateGlobalField('tracking_start_date', e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200"
+                      style={{ '--tw-ring-color': '#1c4587' } as React.CSSProperties & { [key: string]: string }}
+                    />
+                  </div>
+
+                  {/* End Date */}
+                  <div className="flex flex-col">
+                    <label className="text-xs font-medium text-gray-500 mb-1">End Date</label>
+                    <input
+                      type="date"
+                      value={currentRule?.tracking_end_date || ''}
+                      onChange={(e) => updateGlobalField('tracking_end_date', e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200"
+                      style={{ '--tw-ring-color': '#1c4587' } as React.CSSProperties & { [key: string]: string }}
+                    />
+                  </div>
+
+                  {/* Save Button */}
+                  <div className="flex flex-col justify-end">
+                    <button
+                      onClick={handleSaveAutomation}
+                      disabled={loading}
+                      className="px-6 py-2 text-white font-medium rounded-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md transform hover:scale-105"
+                      style={{ backgroundColor: '#1c4587' }}
+                      onMouseEnter={(e) => !e.currentTarget.disabled && (e.currentTarget.style.backgroundColor = '#153a73')}
+                      onMouseLeave={(e) => !e.currentTarget.disabled && (e.currentTarget.style.backgroundColor = '#1c4587')}
+                    >
+                      {loading ? (
+                        <div className="flex items-center">
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Saving...
+                        </div>
+                      ) : (
+                        editingAutomationId ? 'Update Automation' : 'Save Automation'
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1265,23 +1284,23 @@ export default function CreateAutomationPage() {
             <div className="flex justify-center space-x-4 mb-8">
               <button
                 onClick={addTrigger}
-                className="flex items-center space-x-2 bg-blue-100 hover:bg-blue-200 text-blue-800 px-4 py-2 rounded-lg transition-all duration-200 font-medium"
+                className="flex items-center space-x-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 hover:border-blue-300 px-5 py-3 rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md transform hover:scale-105"
               >
-                <span>⚡</span>
+                <span className="text-lg">⚡</span>
                 <span>Add Trigger</span>
               </button>
               <button
                 onClick={addCriteria}
-                className="flex items-center space-x-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-4 py-2 rounded-lg transition-all duration-200 font-medium"
+                className="flex items-center space-x-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 hover:border-amber-300 px-5 py-3 rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md transform hover:scale-105"
               >
-                <span>🔍</span>
+                <span className="text-lg">🔍</span>
                 <span>Add Criteria</span>
               </button>
               <button
                 onClick={addAction}
-                className="flex items-center space-x-2 bg-green-100 hover:bg-green-200 text-green-800 px-4 py-2 rounded-lg transition-all duration-200 font-medium"
+                className="flex items-center space-x-2 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 hover:border-green-300 px-5 py-3 rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md transform hover:scale-105"
               >
-                <span>🎯</span>
+                <span className="text-lg">🎯</span>
                 <span>Add Action</span>
               </button>
             </div>
@@ -1364,14 +1383,13 @@ export default function CreateAutomationPage() {
             {/* Rule Preview */}
             <div className="bg-gray-50 rounded-xl p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Automation Preview</h3>
-              <div className="bg-white rounded-lg p-4 border">
-                <pre className="text-sm text-gray-700 whitespace-pre-wrap overflow-x-auto">
-                  {JSON.stringify(currentRule, null, 2)}
-                </pre>
-              </div>
+              <CodeBlock
+                language="json"
+                code={JSON.stringify(currentRule, null, 2)}
+              />
             </div>
           </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 } 

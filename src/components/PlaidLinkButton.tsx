@@ -87,7 +87,10 @@ export default function PlaidLinkButton() {
         <p className="text-red-600 mb-4">Error: {error}</p>
         <button 
           onClick={() => window.location.reload()} 
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
+          className="text-white px-6 py-3 rounded-lg transition-colors"
+          style={{ backgroundColor: '#1c4587' }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#153a73'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1c4587'}
         >
           Try Again
         </button>
@@ -99,13 +102,24 @@ export default function PlaidLinkButton() {
     <button 
       onClick={() => open()} 
       disabled={!ready}
-      className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+      className={`px-6 py-3 rounded-lg font-semibold transition-colors text-white ${
         ready 
-          ? 'bg-green-600 hover:bg-green-700 text-white cursor-pointer' 
-          : 'bg-gray-400 text-white cursor-not-allowed'
+          ? 'cursor-pointer' 
+          : 'bg-gray-400 cursor-not-allowed'
       }`}
+      style={ready ? { backgroundColor: '#1c4587' } : {}}
+      onMouseEnter={(e) => {
+        if (ready) {
+          e.currentTarget.style.backgroundColor = '#153a73';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (ready) {
+          e.currentTarget.style.backgroundColor = '#1c4587';
+        }
+      }}
     >
-      {ready ? 'Link Bank Account' : 'Preparing...'}
+      {ready ? 'Link New Account' : 'Preparing...'}
     </button>
   )
 } 

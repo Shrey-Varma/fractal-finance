@@ -104,22 +104,18 @@ export default function AccountsOverview() {
   }
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Your Accounts</h3>
-      
+    <div className="space-y-3">
       {accounts.map((account) => (
-        <div key={account.account_id} className="bg-white border rounded-lg p-4">
-          <div className="flex justify-between items-start mb-3">
-            <div>
-              <h4 className="font-semibold">{account.name}</h4>
-              <p className="text-sm text-gray-600">
-                {account.type} • {account.subtype} • ****{account.mask}
-              </p>
-            </div>
+        <div key={account.account_id} className="bg-gray-50 rounded-lg p-4">
+          <div>
+            <h4 className="font-semibold text-gray-900">{account.name}</h4>
+            <p className="text-sm text-gray-600 mb-3">
+              {account.type} • {account.subtype} • ****{account.mask}
+            </p>
             
             {account.balance && (
-              <div className="text-right">
-                <p className="font-semibold text-lg">
+              <div>
+                <p className="font-semibold text-xl text-gray-900 mb-1">
                   {formatCurrency(account.balance.current_balance, account.balance.iso_currency_code)}
                 </p>
                 {account.balance.available_balance !== account.balance.current_balance && (
@@ -130,25 +126,6 @@ export default function AccountsOverview() {
               </div>
             )}
           </div>
-
-          {account.recent_transactions && account.recent_transactions.length > 0 && (
-            <div className="border-t pt-3">
-              <p className="text-sm font-medium text-gray-700 mb-2">Recent Transactions</p>
-              <div className="space-y-2">
-                {account.recent_transactions.slice(0, 3).map((transaction) => (
-                  <div key={transaction.transaction_id} className="flex justify-between items-center text-sm">
-                    <div>
-                      <p className="font-medium">{transaction.merchant_name || transaction.name}</p>
-                      <p className="text-gray-500">{new Date(transaction.date).toLocaleDateString()}</p>
-                    </div>
-                    <p className={`font-medium ${transaction.amount > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {transaction.amount > 0 ? '-' : '+'}{formatCurrency(transaction.amount)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       ))}
     </div>

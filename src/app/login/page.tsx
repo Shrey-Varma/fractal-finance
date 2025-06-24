@@ -13,8 +13,8 @@ export default function LoginPage() {
         {/* Header */}
         <div className="text-center fade-in">
           <Link href="/" className="inline-block mb-8">
-            <div className="text-3xl font-bold text-gray-900">
-              <span className="text-blue-600">Fractal</span>
+            <div className="flex items-center justify-center">
+              <img src="/assets/logo.png" alt="Fractal" className="h-15 w-auto" />
             </div>
           </Link>
           <h2 className="text-3xl font-bold text-gray-900 mb-2">

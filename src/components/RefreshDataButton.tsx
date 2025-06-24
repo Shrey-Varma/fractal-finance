@@ -67,11 +67,22 @@ export default function RefreshDataButton() {
       <button
         onClick={handleRefresh}
         disabled={loading}
-        className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+        className={`px-4 py-2 rounded-lg font-semibold transition-colors text-white ${
           loading
-            ? 'bg-gray-400 text-white cursor-not-allowed'
-            : 'bg-blue-600 hover:bg-blue-700 text-white'
+            ? 'bg-gray-400 cursor-not-allowed'
+            : 'cursor-pointer'
         }`}
+        style={!loading ? { backgroundColor: '#1c4587' } : {}}
+        onMouseEnter={(e) => {
+          if (!loading) {
+            e.currentTarget.style.backgroundColor = '#153a73';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!loading) {
+            e.currentTarget.style.backgroundColor = '#1c4587';
+          }
+        }}
       >
         {loading ? (
           <span className="flex items-center">

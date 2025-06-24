@@ -8,9 +8,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
-              <div className="text-2xl font-bold text-gray-900">
-                <span style={{ color: '#1c4587' }}>Fractal</span>
-              </div>
+              <img src="/assets/logo.png" alt="Fractal" className="h-12 w-auto" />
             </div>
             <div className="flex items-center space-x-4">
               <Link
@@ -132,9 +130,9 @@ export default function LandingPage() {
 
             {/* Feature 3 */}
             <div className="feature-card">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-6">
-                <span className="text-2xl">⚡</span>
-              </div>
+                          <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-6" style={{ backgroundColor: '#1c458720' }}>
+              <span className="text-2xl">⚡</span>
+            </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-3">
                 Instant Automation
               </h3>
@@ -245,8 +243,8 @@ export default function LandingPage() {
       <footer className="bg-gray-900 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <div className="text-2xl font-bold text-white mb-4">
-              <span style={{ color: '#1c4587' }}>Fractal</span>
+            <div className="flex items-center justify-center mb-4">
+              <img src="/assets/logo.png" alt="Fractal" className="h-12 w-auto" />
             </div>
             <p className="text-gray-400 mb-6">
               Intelligent financial automation for everyone

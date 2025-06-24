@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
+import DashboardLayout from '@/components/DashboardLayout';
 
 interface Automation {
   id: string;
@@ -139,47 +140,29 @@ export default function AutomationsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <nav className="bg-white border-b border-gray-100">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-4">
-              <Link href="/create-automation" className="text-gray-600 hover:text-gray-900">
-                ← Back to Automation Builder
-              </Link>
-              <h1 className="text-2xl font-bold text-gray-900">My Automations</h1>
-              <div></div>
-            </div>
-          </div>
-        </nav>
-        
+      <DashboardLayout>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">My Automations</h1>
+          </div>
           <div className="flex justify-center items-center py-20">
             <div className="text-center">
-              <div className="w-8 h-8 bg-purple-600 rounded-full animate-spin mx-auto mb-4"></div>
+              <div className="w-8 h-8 rounded-full animate-spin mx-auto mb-4" style={{ backgroundColor: '#1c4587' }}></div>
               <p className="text-gray-600">Loading automations...</p>
             </div>
           </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <nav className="bg-white border-b border-gray-100">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-4">
-              <Link href="/create-automation" className="text-gray-600 hover:text-gray-900">
-                ← Back to Automation Builder
-              </Link>
-              <h1 className="text-2xl font-bold text-gray-900">My Automations</h1>
-              <div></div>
-            </div>
-          </div>
-        </nav>
-        
+      <DashboardLayout>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">My Automations</h1>
+          </div>
           <div className="bg-red-50 border border-red-200 rounded-lg p-6">
             <h3 className="text-red-800 font-medium mb-2">Error Loading Automations</h3>
             <p className="text-red-700">{error}</p>
@@ -191,28 +174,19 @@ export default function AutomationsPage() {
             </button>
           </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <nav className="bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <Link href="/create-automation" className="text-gray-600 hover:text-gray-900 transition-colors">
-              ← Back to Automation Builder
-            </Link>
-            <h1 className="text-2xl font-bold text-gray-900">My Automations</h1>
-            <Link href="/create-automation" className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors">
-              Create New
-            </Link>
-          </div>
-        </div>
-      </nav>
-
+    <DashboardLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">My Automations</h1>
+          <Link href="/create-automation" className="text-white px-4 py-2 rounded-lg transition-colors" style={{ backgroundColor: '#1c4587' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#153a73'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1c4587'}>
+            Create New
+          </Link>
+        </div>
         {automations.length === 0 ? (
           <div className="text-center py-20">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -222,7 +196,10 @@ export default function AutomationsPage() {
             <p className="text-gray-600 mb-6">Create your first automation to get started with automated financial workflows.</p>
             <Link 
               href="/create-automation"
-              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                              className="text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                style={{ backgroundColor: '#1c4587' }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#153a73'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1c4587'}
             >
               Create Your First Automation
             </Link>
@@ -352,6 +329,6 @@ export default function AutomationsPage() {
           </div>
         )}
       </div>
-    </div>
+    </DashboardLayout>
   );
 } 

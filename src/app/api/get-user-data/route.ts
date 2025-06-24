@@ -63,6 +63,43 @@ export async function GET() {
             })
         )
 
+        // Get all transactions for the transactions page
+        const { data: allTransactions, error: transactionsError } = await supabase
+            .from('transactions')
+            .select(`
+                transaction_id,
+                account_id,
+                name,
+                amount,
+                date,
+                category,
+                merchant_name,
+                accounts!inner(
+                    name,
+                    official_name,
+                    plaid_connections!inner(user_id)
+                )
+            `)
+            .eq('accounts.plaid_connections.user_id', userData.user.id)
+            .order('date', { ascending: false })
+            .limit(100)
+
+        if (transactionsError) {
+            console.error('Error fetching all transactions:', transactionsError)
+        }
+
+        // Format transactions for the frontend
+        const formattedTransactions = (allTransactions || []).map(transaction => ({
+            transaction_id: transaction.transaction_id,
+            account_id: transaction.account_id,
+            account_name: transaction.accounts.official_name || transaction.accounts.name,
+            name: transaction.name,
+            merchant_name: transaction.merchant_name,
+            amount: transaction.amount,
+            date: transaction.date,
+            category: transaction.category || []
+        }))
+
         // Get connections summary
         const { data: connections, error: connectionsError } = await supabase
             .from('plaid_connections')
@@ -76,6 +113,7 @@ export async function GET() {
 
         return NextResponse.json({
             accounts: accountsWithTransactions,
+            transactions: formattedTransactions,
             connections: connections || [],
             summary: {
                 total_accounts: accountsWithTransactions.length,

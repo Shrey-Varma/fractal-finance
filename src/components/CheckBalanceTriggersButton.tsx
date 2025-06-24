@@ -55,8 +55,11 @@ export default function CheckBalanceTriggersButton() {
         className={`px-4 py-2 rounded-lg font-medium transition-colors ${
           loading
             ? 'bg-gray-400 text-white cursor-not-allowed'
-            : 'bg-purple-600 hover:bg-purple-700 text-white'
+            : 'text-white'
         }`}
+        style={loading ? {} : { backgroundColor: '#1c4587' }}
+        onMouseEnter={(e) => !loading && (e.currentTarget.style.backgroundColor = '#153a73')}
+        onMouseLeave={(e) => !loading && (e.currentTarget.style.backgroundColor = '#1c4587')}
       >
         {loading ? 'Checking...' : 'Check Balance Triggers'}
       </button>
