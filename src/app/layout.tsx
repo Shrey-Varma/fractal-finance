@@ -4,6 +4,11 @@ import './globals.css';
 export const metadata = {
   title: 'Fractal - Personal Finance Automation',
   description: 'Automate your personal finance with intelligent rules',
+  icons: {
+    icon: '/assets/favicon.png',
+    shortcut: '/assets/favicon.png',
+    apple: '/assets/favicon.png',
+  },
 }
 
 export default function RootLayout({

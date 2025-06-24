@@ -84,6 +84,8 @@ export default function CreateAutomationPage() {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [userAccounts, setUserAccounts] = useState<string[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(true);
+  const [showTestModal, setShowTestModal] = useState(false);
+  const [testDescription, setTestDescription] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initialMessageProcessedRef = useRef(false);
   const searchParams = useSearchParams();
@@ -1015,6 +1017,164 @@ export default function CreateAutomationPage() {
     </div>
   );
 
+  // Systematic rule-based workflow description generator
+  const generateWorkflowDescription = (rule: AutomationRule): string => {
+    if (!rule) return 'No automation rule defined.';
+
+    let description = '';
+    
+    // Process Triggers
+    if (rule.triggers && rule.triggers.length > 0) {
+      description += 'WHEN:\n';
+      rule.triggers.forEach((trigger, index) => {
+        if (index > 0) description += ' OR ';
+        
+        switch (trigger.type) {
+          case 'new_transaction':
+            description += `A new transaction occurs${trigger.account ? ` in ${trigger.account}` : ' in any account'}`;
+            break;
+          case 'scheduled':
+            if (trigger.schedule) {
+              const freq = trigger.schedule.frequency;
+              switch (freq) {
+                case 'daily':
+                  description += `Every day${trigger.schedule.time ? ` at ${trigger.schedule.time}` : ''}`;
+                  break;
+                case 'weekly':
+                  description += `Every week${trigger.schedule.dayOfWeek ? ` on ${trigger.schedule.dayOfWeek}` : ''}${trigger.schedule.time ? ` at ${trigger.schedule.time}` : ''}`;
+                  break;
+                case 'monthly':
+                  description += `Every month${trigger.schedule.dayOfMonth ? ` on day ${trigger.schedule.dayOfMonth}` : ''}${trigger.schedule.time ? ` at ${trigger.schedule.time}` : ''}`;
+                  break;
+                case 'once':
+                  description += `Once${trigger.schedule.date ? ` on ${trigger.schedule.date}` : ''}${trigger.schedule.time ? ` at ${trigger.schedule.time}` : ''}`;
+                  break;
+                default:
+                  description += `On a ${freq} schedule`;
+              }
+            } else {
+              description += 'On a scheduled basis';
+            }
+            break;
+          case 'income_received':
+            description += `Income is received${trigger.account ? ` in ${trigger.account}` : ' in any account'}`;
+            break;
+          case 'balance_threshold':
+            if (trigger.threshold) {
+              const operator = trigger.threshold.operator === 'greater_than' ? 'exceeds' : 
+                             trigger.threshold.operator === 'less_than' ? 'falls below' : 'equals';
+              description += `Account balance ${operator} $${trigger.threshold.amount || 0}${trigger.account ? ` in ${trigger.account}` : ''}`;
+            } else {
+              description += 'Balance threshold is met';
+            }
+            break;
+          default:
+            description += `Trigger of type "${trigger.type}" occurs`;
+        }
+        
+        if (index < rule.triggers.length - 1) description += '\n';
+      });
+      description += '\n\n';
+    }
+
+    // Process Criteria
+    if (rule.criteria && rule.criteria.length > 0) {
+      description += 'IF:\n';
+      rule.criteria.forEach((criteria, index) => {
+        if (index > 0) description += ' AND ';
+        
+        switch (criteria.conditionType) {
+          case 'amount_range':
+            const operator = criteria.operator === 'greater_than' ? 'is greater than' :
+                           criteria.operator === 'less_than' ? 'is less than' :
+                           criteria.operator === 'equals' ? 'equals' : 'meets condition for';
+            description += `Transaction amount ${operator} $${criteria.amount || 0}`;
+            break;
+          case 'merchant_match':
+            description += `Transaction is from merchant "${criteria.merchant || 'unspecified'}"`;
+            break;
+          case 'category_match':
+            description += `Transaction category is "${criteria.category || 'unspecified'}"`;
+            break;
+          case 'account_match':
+            description += `Transaction is from account "${criteria.account || 'unspecified'}"`;
+            break;
+          case 'time_window':
+            if (criteria.timeWindow) {
+              description += `Transaction occurs between ${criteria.timeWindow.start || 'start'} and ${criteria.timeWindow.end || 'end'}`;
+            } else {
+              description += 'Transaction occurs within specified time window';
+            }
+            break;
+          default:
+            description += `Condition "${criteria.conditionType}" is met`;
+        }
+        
+        if (index < rule.criteria.length - 1) description += '\n';
+      });
+      description += '\n\n';
+    }
+
+    // Process Actions
+    if (rule.actions && rule.actions.length > 0) {
+      description += 'THEN:\n';
+      rule.actions.forEach((action, index) => {
+        if (index > 0) description += ' AND ';
+        
+        switch (action.type) {
+          case 'transfer':
+            description += `Transfer $${action.amount || 0}${action.fromAccount ? ` from ${action.fromAccount}` : ''}${action.toAccount ? ` to ${action.toAccount}` : ''}`;
+            break;
+          case 'percentage_transfer':
+            description += `Transfer ${action.percentage || 0}% of transaction amount${action.fromAccount ? ` from ${action.fromAccount}` : ''}${action.toAccount ? ` to ${action.toAccount}` : ''}`;
+            break;
+          case 'notification':
+            const notifType = action.notificationType === 'sms' ? 'SMS' :
+                            action.notificationType === 'email' ? 'Email' :
+                            action.notificationType === 'push' ? 'Push notification' : 'Notification';
+            description += `Send ${notifType}${action.message ? `: "${action.message}"` : ''}`;
+            break;
+          case 'categorize':
+            description += `Categorize transaction as "${(action as any).category || 'unspecified'}"`;
+            break;
+          case 'tag':
+            description += `Add tag "${(action as any).tag || 'unspecified'}" to transaction`;
+            break;
+          default:
+            description += `Execute action of type "${action.type}"`;
+        }
+        
+        if (index < rule.actions.length - 1) description += '\n';
+      });
+      description += '\n\n';
+    }
+
+    // Add global settings if present
+    if (rule.tracking_start_date || rule.tracking_end_date) {
+      description += 'ACTIVE PERIOD:\n';
+      if (rule.tracking_start_date && rule.tracking_end_date) {
+        description += `From ${rule.tracking_start_date} to ${rule.tracking_end_date}`;
+      } else if (rule.tracking_start_date) {
+        description += `Starting from ${rule.tracking_start_date}`;
+      } else if (rule.tracking_end_date) {
+        description += `Until ${rule.tracking_end_date}`;
+      }
+    }
+
+    return description.trim();
+  };
+
+  const handleTestWorkflow = () => {
+    if (!currentRule) {
+      alert('No automation rule to test. Please create your automation first.');
+      return;
+    }
+
+    const description = generateWorkflowDescription(currentRule);
+    setTestDescription(description);
+    setShowTestModal(true);
+  };
+
   const handleSaveAutomation = async () => {
     if (!currentRule) return;
     const workflowSchema = convertRuleToWorkflow(currentRule);
@@ -1256,8 +1416,18 @@ export default function CreateAutomationPage() {
                     />
                   </div>
 
-                  {/* Save Button */}
-                  <div className="flex flex-col justify-end">
+                  {/* Action Buttons */}
+                  <div className="flex flex-col justify-end space-y-2">
+                    <button
+                      onClick={handleTestWorkflow}
+                      disabled={!currentRule || loading}
+                      className="px-4 py-2 text-white font-medium rounded-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md transform hover:scale-105 text-sm"
+                      style={{ backgroundColor: '#1c4587' }}
+                      onMouseEnter={(e) => !e.currentTarget.disabled && (e.currentTarget.style.backgroundColor = '#153a73')}
+                      onMouseLeave={(e) => !e.currentTarget.disabled && (e.currentTarget.style.backgroundColor = '#1c4587')}
+                    >
+                      🧪 Test Workflow
+                    </button>
                     <button
                       onClick={handleSaveAutomation}
                       disabled={loading}
@@ -1389,7 +1559,116 @@ export default function CreateAutomationPage() {
               />
             </div>
           </div>
+
       </div>
+
+      {/* Test Workflow Modal - Outside DashboardLayout */}
+      {showTestModal && (
+        <div 
+          className="fixed inset-0 flex items-center justify-center z-[9999] p-4"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)' }}
+        >
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[80vh] overflow-hidden shadow-2xl border border-gray-300">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div className="flex items-center">
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center mr-3" style={{ backgroundColor: '#1c4587' }}>
+                  <span className="text-white text-lg">🧪</span>
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">Workflow Test Results</h3>
+                  <p className="text-sm text-gray-600">Systematic analysis of your automation rule</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowTestModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                <div className="flex items-center mb-4">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center mr-3" style={{ backgroundColor: '#1c4587' }}>
+                    <span className="text-white text-sm">📝</span>
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900">Natural Language Description</h4>
+                </div>
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <pre className="whitespace-pre-wrap text-sm text-gray-700 font-mono leading-relaxed">
+                    {testDescription}
+                  </pre>
+                </div>
+              </div>
+
+              {/* Additional Info */}
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <div className="flex items-center mb-2">
+                    <span className="text-blue-600 text-lg mr-2">⚡</span>
+                    <h5 className="font-medium text-blue-900">Triggers</h5>
+                  </div>
+                  <p className="text-sm text-blue-700">
+                    {currentRule?.triggers?.length || 0} trigger(s) configured
+                  </p>
+                </div>
+                
+                <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
+                  <div className="flex items-center mb-2">
+                    <span className="text-amber-600 text-lg mr-2">🔍</span>
+                    <h5 className="font-medium text-amber-900">Criteria</h5>
+                  </div>
+                  <p className="text-sm text-amber-700">
+                    {currentRule?.criteria?.length || 0} criteria configured
+                  </p>
+                </div>
+                
+                <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                  <div className="flex items-center mb-2">
+                    <span className="text-green-600 text-lg mr-2">🎯</span>
+                    <h5 className="font-medium text-green-900">Actions</h5>
+                  </div>
+                  <p className="text-sm text-green-700">
+                    {currentRule?.actions?.length || 0} action(s) configured
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+              <div className="text-sm text-gray-600">
+                ✅ Analysis complete - No LLM used, 100% rule-based conversion
+              </div>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(testDescription);
+                    alert('Description copied to clipboard!');
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors font-medium"
+                >
+                  📋 Copy Text
+                </button>
+                <button
+                  onClick={() => setShowTestModal(false)}
+                  className="px-6 py-2 text-white rounded-md transition-colors font-medium"
+                  style={{ backgroundColor: '#1c4587' }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#153a73'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1c4587'}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 } 
