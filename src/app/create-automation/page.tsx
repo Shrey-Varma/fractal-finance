@@ -433,12 +433,14 @@ export default function CreateAutomationPage() {
   };
 
   const addTrigger = () => {
+    console.log('Adding trigger');
     if (!currentRule) return;
     const newTrigger: TriggerBlock = {
       id: Date.now().toString(),
       type: 'new_transaction',
       account: ''
     };
+    console.log('New trigger ID:', newTrigger.id);
     setCurrentRule({
       ...currentRule,
       triggers: [...(currentRule.triggers || []), newTrigger]
@@ -457,12 +459,14 @@ export default function CreateAutomationPage() {
   };
 
   const addAction = () => {
+    console.log('Adding action');
     if (!currentRule) return;
     const newAction: ActionBlock = {
       id: Date.now().toString(),
       type: 'transfer',
       amount: 0 // Initialize with fixed amount by default
     };
+    console.log('New action ID:', newAction.id);
     setCurrentRule({
       ...currentRule,
       actions: [...(currentRule.actions || []), newAction]
@@ -582,13 +586,17 @@ export default function CreateAutomationPage() {
   };
 
   const toggleBlockExpansion = (blockId: string) => {
+    console.log('Toggling block expansion for:', blockId);
     setExpandedBlocks(prev => {
       const newSet = new Set(prev);
       if (newSet.has(blockId)) {
+        console.log('Collapsing block:', blockId);
         newSet.delete(blockId);
       } else {
+        console.log('Expanding block:', blockId);
         newSet.add(blockId);
       }
+      console.log('New expanded blocks:', Array.from(newSet));
       return newSet;
     });
   };
@@ -720,19 +728,22 @@ export default function CreateAutomationPage() {
             </div>
           </div>
           
-          <div className="flex items-center space-x-2">
-        {currentRule && currentRule.triggers && currentRule.triggers.length > 1 && (
-          <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteTrigger(trigger.id);
-                }}
-                className="w-6 h-6 bg-red-500 bg-opacity-70 rounded-full flex items-center justify-center hover:bg-opacity-90 transition-all text-white text-xs"
-            title="Delete trigger"
-          >
-            ✕
-          </button>
-        )}
+          <div className="flex items-center space-x-3">
+            <motion.button
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('Deleting trigger:', trigger.id);
+                deleteTrigger(trigger.id);
+              }}
+              className="w-7 h-7 rounded-md flex items-center justify-center transition-all duration-200 text-white hover:bg-white hover:bg-opacity-20"
+              title="Remove trigger"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+            </motion.button>
             <span className="text-sm opacity-75">
               {isExpanded ? '−' : '+'}
             </span>
@@ -888,17 +899,22 @@ export default function CreateAutomationPage() {
             </div>
           </div>
           
-          <div className="flex items-center space-x-2">
-        <button
+          <div className="flex items-center space-x-3">
+            <motion.button
               onClick={(e) => {
                 e.stopPropagation();
+                console.log('Deleting criteria:', criteria.id);
                 deleteCriteria(criteria.id);
               }}
-              className="w-6 h-6 bg-red-500 bg-opacity-70 rounded-full flex items-center justify-center hover:bg-opacity-90 transition-all text-white text-xs"
-          title="Delete criteria"
-        >
-          ✕
-        </button>
+              className="w-7 h-7 rounded-md flex items-center justify-center transition-all duration-200 text-white hover:bg-white hover:bg-opacity-20"
+              title="Remove criteria"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+            </motion.button>
             <span className="text-sm opacity-75">
               {isExpanded ? '−' : '+'}
             </span>
@@ -1015,19 +1031,22 @@ export default function CreateAutomationPage() {
             </div>
           </div>
           
-          <div className="flex items-center space-x-2">
-            {currentRule && currentRule.actions && currentRule.actions.length > 1 && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteAction(action.id);
-                }}
-                className="w-6 h-6 bg-red-500 bg-opacity-70 rounded-full flex items-center justify-center hover:bg-opacity-90 transition-all text-white text-xs"
-                title="Delete action"
-              >
-                ✕
-              </button>
-            )}
+          <div className="flex items-center space-x-3">
+            <motion.button
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('Deleting action:', action.id);
+                deleteAction(action.id);
+              }}
+              className="w-7 h-7 rounded-md flex items-center justify-center transition-all duration-200 text-white hover:bg-white hover:bg-opacity-20"
+              title="Remove action"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+            </motion.button>
             <span className="text-sm opacity-75">
               {isExpanded ? '−' : '+'}
             </span>
@@ -1612,11 +1631,7 @@ export default function CreateAutomationPage() {
                 transition={{ duration: 0.5, delay: 0.1 }}
               >
                 <div className="text-center mb-4">
-                  <motion.div 
-                    className="flex items-center justify-center mb-2"
-                    whileHover={{ scale: 1.02 }}
-                    transition={{ duration: 0.2 }}
-                  >
+                  <div className="flex items-center justify-center mb-2">
                     <h2 className="text-xl font-bold" style={{ color: '#1c4587' }}>Triggers</h2>
                     <motion.button
                       onClick={(e) => {
@@ -1638,7 +1653,7 @@ export default function CreateAutomationPage() {
                     >
                       +
                     </motion.button>
-                  </motion.div>
+                  </div>
                   <p className="text-sm text-gray-600">When should this automation run?</p>
                 </div>
                 <div className="flex flex-col items-center space-y-4">
@@ -1680,11 +1695,7 @@ export default function CreateAutomationPage() {
                 transition={{ duration: 0.5, delay: 0.2 }}
               >
                 <div className="text-center mb-4">
-                  <motion.div 
-                    className="flex items-center justify-center mb-2"
-                    whileHover={{ scale: 1.02 }}
-                    transition={{ duration: 0.2 }}
-                  >
+                  <div className="flex items-center justify-center mb-2">
                     <h2 className="text-xl font-bold" style={{ color: '#1c4587' }}>Criteria</h2>
                     <motion.button
                       onClick={(e) => {
@@ -1706,7 +1717,7 @@ export default function CreateAutomationPage() {
                     >
                       +
                     </motion.button>
-                  </motion.div>
+                  </div>
                   <p className="text-sm text-gray-600">What conditions should be met?</p>
                 </div>
                 <div className="flex flex-col items-center space-y-4">
@@ -1749,11 +1760,7 @@ export default function CreateAutomationPage() {
                 transition={{ duration: 0.5, delay: 0.3 }}
               >
                 <div className="text-center mb-4">
-                  <motion.div 
-                    className="flex items-center justify-center mb-2"
-                    whileHover={{ scale: 1.02 }}
-                    transition={{ duration: 0.2 }}
-                  >
+                  <div className="flex items-center justify-center mb-2">
                     <h2 className="text-xl font-bold" style={{ color: '#1c4587' }}>Actions</h2>
                     <motion.button
                       onClick={(e) => {
@@ -1775,7 +1782,7 @@ export default function CreateAutomationPage() {
                     >
                       +
                     </motion.button>
-                  </motion.div>
+                  </div>
                   <p className="text-sm text-gray-600">What should happen?</p>
                 </div>
                 <div className="flex flex-col items-center space-y-4">
