@@ -6,6 +6,7 @@ import Link from 'next/link';
 import DashboardLayout from '@/components/DashboardLayout';
 import { CodeBlock } from '@/components/ui/code-block';
 import { Button } from '@/components/ui/stateful-button';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface TriggerBlock {
   id: string;
@@ -82,6 +83,7 @@ export default function CreateAutomationPage() {
   const [currentRule, setCurrentRule] = useState<AutomationRule | null>(null);
   const [showChat, setShowChat] = useState(false);
   const [editingField, setEditingField] = useState<string | null>(null);
+  const [expandedBlocks, setExpandedBlocks] = useState<Set<string>>(new Set());
   const [userAccounts, setUserAccounts] = useState<string[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(true);
   const [showTestModal, setShowTestModal] = useState(false);
@@ -579,6 +581,46 @@ export default function CreateAutomationPage() {
     return availableAccounts[0] || '';
   };
 
+  const toggleBlockExpansion = (blockId: string) => {
+    setExpandedBlocks(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(blockId)) {
+        newSet.delete(blockId);
+      } else {
+        newSet.add(blockId);
+      }
+      return newSet;
+    });
+  };
+
+  const getBlockSummary = (block: any, type: 'trigger' | 'criteria' | 'action'): string => {
+    if (type === 'trigger') {
+      const typeMap: { [key: string]: string } = {
+        'new_transaction': 'New Transaction',
+        'scheduled': 'Scheduled',
+        'income_received': 'Income Received',
+        'balance_threshold': 'Balance Threshold'
+      };
+      return typeMap[block.type] || 'Trigger';
+    } else if (type === 'criteria') {
+      const typeMap: { [key: string]: string } = {
+        'spending_threshold': 'Spending Check',
+        'balance_check': 'Balance Check',
+        'merchant_filter': 'Merchant Filter',
+        'category_filter': 'Category Filter',
+        'amount_range': 'Amount Range'
+      };
+      return typeMap[block.conditionType] || 'Condition';
+    } else if (type === 'action') {
+      const typeMap: { [key: string]: string } = {
+        'transfer': 'Money Transfer',
+        'notify': 'Send Notification'
+      };
+      return typeMap[block.type] || 'Action';
+    }
+    return '';
+  };
+
   const EditableField = ({ 
     value, 
     onSave, 
@@ -616,7 +658,8 @@ export default function CreateAutomationPage() {
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             onBlur={handleSave}
-            className="bg-white border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="bg-white border border-gray-300 rounded px-2 py-1 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:border-transparent min-w-24"
+            style={{ '--tw-ring-color': '#1c4587' } as React.CSSProperties & { [key: string]: string }}
             autoFocus
           >
             <option value="">Select...</option>
@@ -634,7 +677,8 @@ export default function CreateAutomationPage() {
           onChange={(e) => setEditValue(e.target.value)}
           onBlur={handleSave}
           onKeyDown={handleKeyDown}
-          className="bg-white border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-0"
+          className="bg-white border border-gray-300 rounded px-2 py-1 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:border-transparent min-w-0"
+          style={{ '--tw-ring-color': '#1c4587' } as React.CSSProperties & { [key: string]: string }}
           placeholder={placeholder}
           autoFocus
         />
@@ -651,371 +695,477 @@ export default function CreateAutomationPage() {
     );
   };
 
-  const renderTriggerBlock = (trigger: TriggerBlock) => (
-    <div key={trigger.id} className="automation-block bg-gradient-to-br from-blue-100 to-blue-200 border-2 border-blue-300 hover:from-blue-150 hover:to-blue-250 mb-4">
-      <div className="flex items-center mb-4">
-        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mr-3">
-          <span className="text-white text-lg">⚡</span>
-        </div>
-        <span className="font-bold text-blue-900 text-lg">Trigger</span>
+    const renderTriggerBlock = (trigger: TriggerBlock) => {
+    const isExpanded = expandedBlocks.has(trigger.id);
+    const summary = getBlockSummary(trigger, 'trigger');
+    
+    return (
+      <motion.div 
+        key={trigger.id} 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        transition={{ duration: 0.3 }}
+        className="bg-white border border-gray-200 rounded-lg p-4 mb-4 cursor-pointer hover:border-gray-300 transition-all duration-200"
+        onClick={() => toggleBlockExpansion(trigger.id)}
+        style={{ backgroundColor: '#1c4587', color: 'white' }}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <span className="text-lg mr-3">⚡</span>
+            <div>
+              <div className="font-medium">{summary}</div>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-2">
         {currentRule && currentRule.triggers && currentRule.triggers.length > 1 && (
           <button
-            onClick={() => deleteTrigger(trigger.id)}
-            className="ml-auto w-6 h-6 bg-red-500 bg-opacity-70 rounded-full flex items-center justify-center hover:bg-opacity-90 transition-all text-white text-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteTrigger(trigger.id);
+                }}
+                className="w-6 h-6 bg-red-500 bg-opacity-70 rounded-full flex items-center justify-center hover:bg-opacity-90 transition-all text-white text-xs"
             title="Delete trigger"
           >
             ✕
           </button>
         )}
+            <span className="text-sm opacity-75">
+              {isExpanded ? '−' : '+'}
+            </span>
+          </div>
       </div>
       
-      <div className="space-y-3 text-blue-800">
-        <div className="flex items-center">
-          <span className="text-sm font-medium mr-2">Type:</span>
-          <EditableField
-            value={trigger.type}
-            onSave={(value) => updateTrigger(trigger.id, 'type', value)}
-            type="select"
-            options={['scheduled', 'new_transaction', 'income_received', 'balance_threshold']}
-            placeholder="Select trigger type"
-          />
-        </div>
-        
-        <div className="flex items-center">
-          <span className="text-sm font-medium mr-2">Account:</span>
-          <EditableField
-            value={trigger.account}
-            onSave={(value) => updateTrigger(trigger.id, 'account', value)}
-            type="select"
-            options={userAccounts}
-            placeholder={loadingAccounts ? "Loading accounts..." : "Select account"}
-          />
-        </div>
-
-        {trigger.type === 'scheduled' && (
-          <>
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="mt-4 pt-4 border-t border-white border-opacity-20 space-y-3 text-white overflow-hidden" 
+              onClick={(e) => e.stopPropagation()}
+            >
             <div className="flex items-center">
-              <span className="text-sm font-medium mr-2">Frequency:</span>
+              <span className="text-sm font-medium mr-2">Type:</span>
               <EditableField
-                value={trigger.schedule?.frequency}
-                onSave={(value) => updateTrigger(trigger.id, 'schedule', { ...trigger.schedule, frequency: value })}
+                value={trigger.type}
+                onSave={(value) => updateTrigger(trigger.id, 'type', value)}
                 type="select"
-                options={['daily', 'weekly', 'monthly', 'once']}
-                placeholder="Select frequency"
-              />
-            </div>
-            
-            {trigger.schedule?.frequency === 'weekly' && (
-              <div className="flex items-center">
-                <span className="text-sm font-medium mr-2">Day:</span>
-                <EditableField
-                  value={trigger.schedule?.dayOfWeek}
-                  onSave={(value) => updateTrigger(trigger.id, 'schedule', { ...trigger.schedule, dayOfWeek: value })}
-                  type="select"
-                  options={['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Any']}
-                  placeholder="Select day"
-                />
-              </div>
-            )}
-
-            {trigger.schedule?.frequency === 'monthly' && (
-              <div className="flex items-center">
-                <span className="text-sm font-medium mr-2">Day of Month:</span>
-                <EditableField
-                  value={trigger.schedule?.dayOfMonth}
-                  onSave={(value) => updateTrigger(trigger.id, 'schedule', { ...trigger.schedule, dayOfMonth: parseInt(value) })}
-                  type="number"
-                  placeholder="1-31"
-                />
-              </div>
-            )}
-
-            {trigger.schedule?.frequency === 'once' && (
-              <div className="flex items-center">
-                <span className="text-sm font-medium mr-2">Date:</span>
-                <EditableField
-                  value={trigger.schedule?.date}
-                  onSave={(value) => updateTrigger(trigger.id, 'schedule', { ...trigger.schedule, date: value })}
-                  type="text"
-                  placeholder="YYYY-MM-DD"
-                />
-              </div>
-            )}
-
-            <div className="flex items-center">
-              <span className="text-sm font-medium mr-2">Time:</span>
-              <EditableField
-                value={trigger.schedule?.time}
-                onSave={(value) => updateTrigger(trigger.id, 'schedule', { ...trigger.schedule, time: value })}
-                placeholder="HH:MM"
-              />
-            </div>
-          </>
-        )}
-
-        {trigger.type === 'balance_threshold' && (
-          <>
-            <div className="flex items-center">
-              <span className="text-sm font-medium mr-2">Operator:</span>
-              <EditableField
-                value={trigger.threshold?.operator}
-                onSave={(value) => updateTrigger(trigger.id, 'threshold', { ...trigger.threshold, operator: value })}
-                type="select"
-                options={['greater_than', 'less_than', 'equals']}
-                placeholder="Select operator"
+                options={['scheduled', 'new_transaction', 'income_received', 'balance_threshold']}
+                placeholder="Select trigger type"
               />
             </div>
             
             <div className="flex items-center">
-              <span className="text-sm font-medium mr-2">Amount $:</span>
+              <span className="text-sm font-medium mr-2">Account:</span>
               <EditableField
-                value={trigger.threshold?.amount}
-                onSave={(value) => updateTrigger(trigger.id, 'threshold', { ...trigger.threshold, amount: parseFloat(value) })}
-                type="number"
-                placeholder="Enter amount"
+                value={trigger.account}
+                onSave={(value) => updateTrigger(trigger.id, 'account', value)}
+                type="select"
+                options={userAccounts}
+                placeholder={loadingAccounts ? "Loading accounts..." : "Select account"}
               />
             </div>
-          </>
-        )}
 
+            {trigger.type === 'scheduled' && (
+              <>
+                <div className="flex items-center">
+                  <span className="text-sm font-medium mr-2">Frequency:</span>
+                  <EditableField
+                    value={trigger.schedule?.frequency}
+                    onSave={(value) => updateTrigger(trigger.id, 'schedule', { ...trigger.schedule, frequency: value })}
+                    type="select"
+                    options={['daily', 'weekly', 'monthly', 'once']}
+                    placeholder="Select frequency"
+                  />
+                </div>
+                
+                {trigger.schedule?.frequency === 'weekly' && (
+                  <div className="flex items-center">
+                    <span className="text-sm font-medium mr-2">Day:</span>
+                    <EditableField
+                      value={trigger.schedule?.dayOfWeek}
+                      onSave={(value) => updateTrigger(trigger.id, 'schedule', { ...trigger.schedule, dayOfWeek: value })}
+                      type="select"
+                      options={['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Any']}
+                      placeholder="Select day"
+                    />
+                  </div>
+                )}
 
-      </div>
-    </div>
-  );
+                {trigger.schedule?.frequency === 'monthly' && (
+                  <div className="flex items-center">
+                    <span className="text-sm font-medium mr-2">Day of Month:</span>
+                    <EditableField
+                      value={trigger.schedule?.dayOfMonth}
+                      onSave={(value) => updateTrigger(trigger.id, 'schedule', { ...trigger.schedule, dayOfMonth: parseInt(value) })}
+                      type="number"
+                      placeholder="1-31"
+                    />
+                  </div>
+                )}
 
-  const renderCriteriaBlock = (criteria: CriteriaBlock) => (
-    <div key={criteria.id} className="automation-block bg-gradient-to-br from-yellow-100 to-yellow-200 border-2 border-yellow-300 hover:from-yellow-150 hover:to-yellow-250 mb-4">
-      <div className="flex items-center mb-4">
-        <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center mr-3">
-          <span className="text-white text-lg">🔍</span>
-        </div>
-        <span className="font-bold text-yellow-900 text-lg">Criteria</span>
+                {trigger.schedule?.frequency === 'once' && (
+                  <div className="flex items-center">
+                    <span className="text-sm font-medium mr-2">Date:</span>
+                    <EditableField
+                      value={trigger.schedule?.date}
+                      onSave={(value) => updateTrigger(trigger.id, 'schedule', { ...trigger.schedule, date: value })}
+                      type="text"
+                      placeholder="YYYY-MM-DD"
+                    />
+                  </div>
+                )}
+
+                <div className="flex items-center">
+                  <span className="text-sm font-medium mr-2">Time:</span>
+                  <EditableField
+                    value={trigger.schedule?.time}
+                    onSave={(value) => updateTrigger(trigger.id, 'schedule', { ...trigger.schedule, time: value })}
+                    placeholder="HH:MM"
+                  />
+                </div>
+              </>
+            )}
+
+            {trigger.type === 'balance_threshold' && (
+              <>
+                <div className="flex items-center">
+                  <span className="text-sm font-medium mr-2">Operator:</span>
+                  <EditableField
+                    value={trigger.threshold?.operator}
+                    onSave={(value) => updateTrigger(trigger.id, 'threshold', { ...trigger.threshold, operator: value })}
+                    type="select"
+                    options={['greater_than', 'less_than', 'equals']}
+                    placeholder="Select operator"
+                  />
+                </div>
+                
+                <div className="flex items-center">
+                  <span className="text-sm font-medium mr-2">Amount $:</span>
+                  <EditableField
+                    value={trigger.threshold?.amount}
+                    onSave={(value) => updateTrigger(trigger.id, 'threshold', { ...trigger.threshold, amount: parseFloat(value) })}
+                    type="number"
+                    placeholder="Enter amount"
+                  />
+                </div>
+              </>
+            )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    );
+  };
+
+  const renderCriteriaBlock = (criteria: CriteriaBlock) => {
+    const isExpanded = expandedBlocks.has(criteria.id);
+    const summary = getBlockSummary(criteria, 'criteria');
+    
+    return (
+      <motion.div 
+        key={criteria.id} 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        transition={{ duration: 0.3 }}
+        className="bg-white border border-gray-200 rounded-lg p-4 mb-4 cursor-pointer hover:border-gray-300 transition-all duration-200"
+        onClick={() => toggleBlockExpansion(criteria.id)}
+        style={{ backgroundColor: '#1c4587', color: 'white' }}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <span className="text-lg mr-3">🔍</span>
+            <div>
+              <div className="font-medium">{summary}</div>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-2">
         <button
-          onClick={() => deleteCriteria(criteria.id)}
-          className="ml-auto w-6 h-6 bg-red-500 bg-opacity-70 rounded-full flex items-center justify-center hover:bg-opacity-90 transition-all text-white text-xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteCriteria(criteria.id);
+              }}
+              className="w-6 h-6 bg-red-500 bg-opacity-70 rounded-full flex items-center justify-center hover:bg-opacity-90 transition-all text-white text-xs"
           title="Delete criteria"
         >
           ✕
         </button>
+            <span className="text-sm opacity-75">
+              {isExpanded ? '−' : '+'}
+            </span>
+          </div>
       </div>
       
-      <div className="space-y-3 text-yellow-800">
-        <div className="flex items-center">
-          <span className="text-sm font-medium mr-2">Type:</span>
-          <EditableField
-            value={criteria.conditionType}
-            onSave={(value) => updateCriteria(criteria.id, 'conditionType', value)}
-            type="select"
-            options={['spending_threshold', 'balance_check', 'merchant_filter', 'category_filter', 'amount_range']}
-            placeholder="Select condition type"
-          />
-        </div>
-
-        {criteria.conditionType === 'merchant_filter' && (
-          <div className="flex items-center">
-            <span className="text-sm font-medium mr-2">Merchant:</span>
-            <EditableField
-              value={criteria.merchant}
-              onSave={(value) => updateCriteria(criteria.id, 'merchant', value)}
-              placeholder="Enter merchant name"
-            />
-          </div>
-        )}
-        
-        {criteria.conditionType === 'category_filter' && (
-          <div className="flex items-center">
-            <span className="text-sm font-medium mr-2">Category:</span>
-            <EditableField
-              value={criteria.category}
-              onSave={(value) => updateCriteria(criteria.id, 'category', value)}
-              placeholder="Enter category"
-            />
-          </div>
-        )}
-        
-        {(criteria.conditionType === 'spending_threshold' || criteria.conditionType === 'balance_check' || criteria.conditionType === 'amount_range') && (
-          <>
-            <div className="flex items-center">
-              <span className="text-sm font-medium mr-2">Operator:</span>
-              <EditableField
-                value={criteria.operator}
-                onSave={(value) => updateCriteria(criteria.id, 'operator', value)}
-                type="select"
-                options={['greater_than', 'less_than', 'equals']}
-                placeholder="Select operator"
-              />
-            </div>
-            
-            <div className="flex items-center">
-              <span className="text-sm font-medium mr-2">Amount $:</span>
-              <EditableField
-                value={criteria.amount}
-                onSave={(value) => updateCriteria(criteria.id, 'amount', value)}
-                type="number"
-                placeholder="Enter amount"
-              />
-            </div>
-          </>
-        )}
-
-        <div className="flex items-center">
-          <span className="text-sm font-medium mr-2">Account:</span>
-          <EditableField
-            value={criteria.account}
-            onSave={(value) => updateCriteria(criteria.id, 'account', value)}
-            type="select"
-            options={['Any account', ...userAccounts]}
-            placeholder={loadingAccounts ? "Loading accounts..." : "Select account"}
-          />
-        </div>
-
-
-      </div>
-    </div>
-  );
-
-  const renderActionBlock = (action: ActionBlock) => (
-    <div key={action.id} className="automation-block bg-gradient-to-br from-green-100 to-green-200 border-2 border-green-300 hover:from-green-150 hover:to-green-250 mb-4">
-      <div className="flex items-center mb-4">
-        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-3">
-          <span className="text-white text-lg">🎯</span>
-        </div>
-        <span className="font-bold text-green-900 text-lg">Action</span>
-        {currentRule && currentRule.actions && currentRule.actions.length > 1 && (
-          <button
-            onClick={() => deleteAction(action.id)}
-            className="ml-auto w-6 h-6 bg-red-500 bg-opacity-70 rounded-full flex items-center justify-center hover:bg-opacity-90 transition-all text-white text-xs"
-            title="Delete action"
-          >
-            ✕
-          </button>
-        )}
-      </div>
-      
-      <div className="space-y-3 text-green-800">
-        <div className="flex items-center">
-          <span className="text-sm font-medium mr-2">Do:</span>
-          <EditableField
-            value={action.type}
-            onSave={(value) => updateAction(action.id, 'type', value)}
-            type="select"
-            options={['transfer', 'notify']}
-            placeholder="Select action"
-          />
-        </div>
-        
-        {action.type === 'transfer' && (
-          <>
-            <div className="flex items-center">
-              <span className="text-sm font-medium mr-2">From:</span>
-              <EditableField
-                value={action.fromAccount}
-                onSave={(value) => updateAction(action.id, 'fromAccount', value)}
-                type="select"
-                options={userAccounts}
-                placeholder={loadingAccounts ? "Loading accounts..." : "Select source account"}
-              />
-            </div>
-            
-            <div className="flex items-center">
-              <span className="text-sm font-medium mr-2">To:</span>
-              <EditableField
-                value={action.toAccount}
-                onSave={(value) => updateAction(action.id, 'toAccount', value)}
-                type="select"
-                options={userAccounts}
-                placeholder={loadingAccounts ? "Loading accounts..." : "Select destination account"}
-              />
-            </div>
-            
-            <div className="flex items-center">
-              <span className="text-sm font-medium mr-2">Amount Type:</span>
-              <button
-                onClick={() => {
-                  // Switch to fixed amount mode - remove percentage field
-                  updateAction(action.id, 'percentage', undefined);
-                  updateAction(action.id, 'amount', action.amount || 0);
-                }}
-                className={`px-3 py-1 rounded text-xs font-medium transition-all ${
-                  action.amount !== undefined 
-                    ? 'bg-green-500 text-white' 
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                $ Fixed
-              </button>
-              <button
-                onClick={() => {
-                  // Switch to percentage mode - remove amount field
-                  updateAction(action.id, 'amount', undefined);
-                  updateAction(action.id, 'percentage', action.percentage || 0);
-                }}
-                className={`ml-2 px-3 py-1 rounded text-xs font-medium transition-all ${
-                  action.percentage !== undefined 
-                    ? 'bg-green-500 text-white' 
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                % Percent
-              </button>
-            </div>
-            
-            {action.amount !== undefined && (
-              <div className="flex items-center">
-                <span className="text-sm font-medium mr-2">Amount $:</span>
-                <EditableField
-                  value={action.amount}
-                  onSave={(value) => updateAction(action.id, 'amount', value)}
-                  type="number"
-                  placeholder="Enter amount"
-                />
-              </div>
-            )}
-            
-            {action.percentage !== undefined && (
-              <div className="flex items-center">
-                <span className="text-sm font-medium mr-2">Percentage %:</span>
-                <EditableField
-                  value={action.percentage}
-                  onSave={(value) => updateAction(action.id, 'percentage', value)}
-                  type="number"
-                  placeholder="Enter percentage"
-                />
-              </div>
-            )}
-          </>
-        )}
-        
-        {action.type === 'notify' && (
-          <>
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="mt-4 pt-4 border-t border-white border-opacity-20 space-y-3 text-white overflow-hidden" 
+              onClick={(e) => e.stopPropagation()}
+            >
             <div className="flex items-center">
               <span className="text-sm font-medium mr-2">Type:</span>
               <EditableField
-                value={action.notificationType}
-                onSave={(value) => updateAction(action.id, 'notificationType', value)}
+                value={criteria.conditionType}
+                onSave={(value) => updateCriteria(criteria.id, 'conditionType', value)}
                 type="select"
-                options={['email', 'sms', 'push', 'in_app']}
-                placeholder="Select notification type"
+                options={['spending_threshold', 'balance_check', 'merchant_filter', 'category_filter', 'amount_range']}
+                placeholder="Select condition type"
               />
             </div>
-          </>
-        )}
 
+            {criteria.conditionType === 'merchant_filter' && (
+              <div className="flex items-center">
+                <span className="text-sm font-medium mr-2">Merchant:</span>
+                <EditableField
+                  value={criteria.merchant}
+                  onSave={(value) => updateCriteria(criteria.id, 'merchant', value)}
+                  placeholder="Enter merchant name"
+                />
+              </div>
+            )}
+            
+            {criteria.conditionType === 'category_filter' && (
+              <div className="flex items-center">
+                <span className="text-sm font-medium mr-2">Category:</span>
+                <EditableField
+                  value={criteria.category}
+                  onSave={(value) => updateCriteria(criteria.id, 'category', value)}
+                  placeholder="Enter category"
+                />
+              </div>
+            )}
+            
+            {(criteria.conditionType === 'spending_threshold' || criteria.conditionType === 'balance_check' || criteria.conditionType === 'amount_range') && (
+              <>
+                <div className="flex items-center">
+                  <span className="text-sm font-medium mr-2">Operator:</span>
+                  <EditableField
+                    value={criteria.operator}
+                    onSave={(value) => updateCriteria(criteria.id, 'operator', value)}
+                    type="select"
+                    options={['greater_than', 'less_than', 'equals']}
+                    placeholder="Select operator"
+                  />
+                </div>
+                
+                <div className="flex items-center">
+                  <span className="text-sm font-medium mr-2">Amount $:</span>
+                  <EditableField
+                    value={criteria.amount}
+                    onSave={(value) => updateCriteria(criteria.id, 'amount', value)}
+                    type="number"
+                    placeholder="Enter amount"
+                  />
+                </div>
+              </>
+            )}
 
-        
-        {action.type === 'notify' && (
+            <div className="flex items-center">
+              <span className="text-sm font-medium mr-2">Account:</span>
+              <EditableField
+                value={criteria.account}
+                onSave={(value) => updateCriteria(criteria.id, 'account', value)}
+                type="select"
+                options={['Any account', ...userAccounts]}
+                placeholder={loadingAccounts ? "Loading accounts..." : "Select account"}
+              />
+            </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    );
+  };
+
+  const renderActionBlock = (action: ActionBlock) => {
+    const isExpanded = expandedBlocks.has(action.id);
+    const summary = getBlockSummary(action, 'action');
+    
+    return (
+      <motion.div 
+        key={action.id} 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        transition={{ duration: 0.3 }}
+        className="bg-white border border-gray-200 rounded-lg p-4 mb-4 cursor-pointer hover:border-gray-300 transition-all duration-200"
+        onClick={() => toggleBlockExpansion(action.id)}
+        style={{ backgroundColor: '#1c4587', color: 'white' }}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+      >
+        <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <span className="text-sm font-medium mr-2">Message:</span>
-            <EditableField
-              value={action.message}
-              onSave={(value) => updateAction(action.id, 'message', value)}
-              placeholder="Notification message"
-            />
+            <span className="text-lg mr-3">🎯</span>
+            <div>
+              <div className="font-medium">{summary}</div>
+            </div>
           </div>
-        )}
-      </div>
-    </div>
-  );
+          
+          <div className="flex items-center space-x-2">
+            {currentRule && currentRule.actions && currentRule.actions.length > 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteAction(action.id);
+                }}
+                className="w-6 h-6 bg-red-500 bg-opacity-70 rounded-full flex items-center justify-center hover:bg-opacity-90 transition-all text-white text-xs"
+                title="Delete action"
+              >
+                ✕
+              </button>
+            )}
+            <span className="text-sm opacity-75">
+              {isExpanded ? '−' : '+'}
+            </span>
+          </div>
+        </div>
+        
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="mt-4 pt-4 border-t border-white border-opacity-20 space-y-3 text-white overflow-hidden" 
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center">
+                <span className="text-sm font-medium mr-2">Do:</span>
+                <EditableField
+                  value={action.type}
+                  onSave={(value) => updateAction(action.id, 'type', value)}
+                  type="select"
+                  options={['transfer', 'notify']}
+                  placeholder="Select action"
+                />
+              </div>
+              
+              {action.type === 'transfer' && (
+                <>
+                  <div className="flex items-center">
+                    <span className="text-sm font-medium mr-2">From:</span>
+                    <EditableField
+                      value={action.fromAccount}
+                      onSave={(value) => updateAction(action.id, 'fromAccount', value)}
+                      type="select"
+                      options={userAccounts}
+                      placeholder={loadingAccounts ? "Loading accounts..." : "Select source account"}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <span className="text-sm font-medium mr-2">To:</span>
+                    <EditableField
+                      value={action.toAccount}
+                      onSave={(value) => updateAction(action.id, 'toAccount', value)}
+                      type="select"
+                      options={userAccounts}
+                      placeholder={loadingAccounts ? "Loading accounts..." : "Select destination account"}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <span className="text-sm font-medium mr-2">Amount Type:</span>
+                    <button
+                      onClick={() => {
+                        // Switch to fixed amount mode - remove percentage field
+                        updateAction(action.id, 'percentage', undefined);
+                        updateAction(action.id, 'amount', action.amount || 0);
+                      }}
+                      className={`px-3 py-1 rounded text-xs font-medium transition-all ${
+                        action.amount !== undefined 
+                          ? 'bg-white bg-opacity-20 text-white' 
+                          : 'bg-white bg-opacity-10 text-white hover:bg-opacity-20'
+                      }`}
+                    >
+                      $ Fixed
+                    </button>
+                    <button
+                      onClick={() => {
+                        // Switch to percentage mode - remove amount field
+                        updateAction(action.id, 'amount', undefined);
+                        updateAction(action.id, 'percentage', action.percentage || 0);
+                      }}
+                      className={`ml-2 px-3 py-1 rounded text-xs font-medium transition-all ${
+                        action.percentage !== undefined 
+                          ? 'bg-white bg-opacity-20 text-white' 
+                          : 'bg-white bg-opacity-10 text-white hover:bg-opacity-20'
+                      }`}
+                    >
+                      % Percent
+                    </button>
+                  </div>
+                  
+                  {action.amount !== undefined && (
+                    <div className="flex items-center">
+                      <span className="text-sm font-medium mr-2">Amount $:</span>
+                      <EditableField
+                        value={action.amount}
+                        onSave={(value) => updateAction(action.id, 'amount', value)}
+                        type="number"
+                        placeholder="Enter amount"
+                      />
+                    </div>
+                  )}
+                  
+                  {action.percentage !== undefined && (
+                    <div className="flex items-center">
+                      <span className="text-sm font-medium mr-2">Percentage %:</span>
+                      <EditableField
+                        value={action.percentage}
+                        onSave={(value) => updateAction(action.id, 'percentage', value)}
+                        type="number"
+                        placeholder="Enter percentage"
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+              
+              {action.type === 'notify' && (
+                <>
+                  <div className="flex items-center">
+                    <span className="text-sm font-medium mr-2">Type:</span>
+                    <EditableField
+                      value={action.notificationType}
+                      onSave={(value) => updateAction(action.id, 'notificationType', value)}
+                      type="select"
+                      options={['email', 'sms', 'push', 'in_app']}
+                      placeholder="Select notification type"
+                    />
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <span className="text-sm font-medium mr-2">Message:</span>
+                    <EditableField
+                      value={action.message}
+                      onSave={(value) => updateAction(action.id, 'message', value)}
+                      placeholder="Notification message"
+                    />
+                  </div>
+                </>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    );
+  };
 
   // Systematic rule-based workflow description generator
   const generateWorkflowDescription = (rule: AutomationRule): string => {
@@ -1296,7 +1446,7 @@ export default function CreateAutomationPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* AI Assistant Chat */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 mb-8 slide-up">
+        <div className="bg-white rounded-xl border border-gray-200 mb-8">
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
@@ -1362,11 +1512,11 @@ export default function CreateAutomationPage() {
           </div>
 
         {/* Main Automation Workflow */}
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8">
+          <div className="bg-white rounded-xl border border-gray-200 p-8">
 
 
             {/* Global Settings */}
-            <div className="bg-white border border-gray-200 rounded-lg p-6 mb-8 shadow-sm">
+            <div className="bg-white border border-gray-200 rounded-lg p-6 mb-8">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <div className="w-10 h-10 rounded-lg flex items-center justify-center mr-3" style={{ backgroundColor: '#1c4587' }}>
@@ -1402,7 +1552,7 @@ export default function CreateAutomationPage() {
                       className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200"
                       style={{ '--tw-ring-color': '#1c4587' } as React.CSSProperties & { [key: string]: string }}
                     />
-                  </div>
+                </div>
 
                   {/* End Date */}
                   <div className="flex flex-col">
@@ -1414,11 +1564,11 @@ export default function CreateAutomationPage() {
                       className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200"
                       style={{ '--tw-ring-color': '#1c4587' } as React.CSSProperties & { [key: string]: string }}
                     />
-                  </div>
+            </div>
 
                   {/* Action Buttons */}
                   <div className="flex flex-col justify-end space-y-2">
-                    <button
+              <button
                       onClick={handleTestWorkflow}
                       disabled={!currentRule || loading}
                       className="px-4 py-2 text-white font-medium rounded-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md transform hover:scale-105 text-sm"
@@ -1427,8 +1577,8 @@ export default function CreateAutomationPage() {
                       onMouseLeave={(e) => !e.currentTarget.disabled && (e.currentTarget.style.backgroundColor = '#1c4587')}
                     >
                       🧪 Test Workflow
-                    </button>
-                    <button
+              </button>
+              <button
                       onClick={handleSaveAutomation}
                       disabled={loading}
                       className="px-6 py-2 text-white font-medium rounded-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md transform hover:scale-105"
@@ -1444,110 +1594,221 @@ export default function CreateAutomationPage() {
                       ) : (
                         editingAutomationId ? 'Update Automation' : 'Save Automation'
                       )}
-                    </button>
+              </button>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Add Block Buttons */}
-            <div className="flex justify-center space-x-4 mb-8">
-              <button
-                onClick={addTrigger}
-                className="flex items-center space-x-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 hover:border-blue-300 px-5 py-3 rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md transform hover:scale-105"
-              >
-                <span className="text-lg">⚡</span>
-                <span>Add Trigger</span>
-              </button>
-              <button
-                onClick={addCriteria}
-                className="flex items-center space-x-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 hover:border-amber-300 px-5 py-3 rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md transform hover:scale-105"
-              >
-                <span className="text-lg">🔍</span>
-                <span>Add Criteria</span>
-              </button>
-              <button
-                onClick={addAction}
-                className="flex items-center space-x-2 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 hover:border-green-300 px-5 py-3 rounded-md transition-all duration-200 font-medium shadow-sm hover:shadow-md transform hover:scale-105"
-              >
-                <span className="text-lg">🎯</span>
-                <span>Add Action</span>
-              </button>
-            </div>
+
 
             {/* Automation Blocks in Columns */}
-            <div className="flex items-start justify-center space-x-4 mb-8 overflow-x-auto">
+            <div className="flex items-start justify-center space-x-8 mb-8 overflow-x-auto">
               {/* Triggers Column */}
-              <div className="flex-1 max-w-sm">
+              <motion.div 
+                className="flex-1 max-w-sm"
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+              >
                 <div className="text-center mb-4">
-                  <h2 className="text-xl font-bold text-blue-900 mb-2">Triggers</h2>
-                  <p className="text-sm text-blue-600">When should this automation run?</p>
+                  <motion.div 
+                    className="flex items-center justify-center mb-2"
+                    whileHover={{ scale: 1.02 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <h2 className="text-xl font-bold" style={{ color: '#1c4587' }}>Triggers</h2>
+                    <motion.button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addTrigger();
+                      }}
+                      className="ml-2 w-6 h-6 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all duration-200 hover:bg-opacity-10"
+                      style={{ 
+                        borderColor: '#1c4587', 
+                        color: '#1c4587',
+                        backgroundColor: 'transparent'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1c458710'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      title="Add Trigger"
+                      whileHover={{ scale: 1.1, rotate: 90 }}
+                      whileTap={{ scale: 0.9 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      +
+                    </motion.button>
+                  </motion.div>
+                  <p className="text-sm text-gray-600">When should this automation run?</p>
                 </div>
                 <div className="flex flex-col items-center space-y-4">
-                  {currentRule?.triggers?.map(trigger => renderTriggerBlock(trigger))}
+                  <AnimatePresence mode="popLayout">
+                    {currentRule?.triggers?.map(trigger => renderTriggerBlock(trigger))}
+                  </AnimatePresence>
                   {(!currentRule?.triggers || currentRule.triggers.length === 0) && (
-                    <div className="text-center text-gray-500 py-8 border-2 border-dashed border-gray-300 rounded-lg w-full max-w-xs">
-                      <span className="text-4xl mb-2 block">⚡</span>
-                      <p>No triggers yet</p>
-                      <p className="text-sm">Click "Add Trigger" above</p>
-                    </div>
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.3 }}
+                      className="text-center text-gray-400 py-6 border-2 border-dashed border-gray-200 rounded-lg w-full max-w-xs"
+                    >
+                      <motion.span 
+                        animate={{ 
+                          scale: [1, 1.1, 1],
+                          opacity: [0.5, 0.8, 0.5]
+                        }}
+                        transition={{ 
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "easeInOut"
+                        }}
+                        className="text-2xl mb-2 block"
+                      >
+                        ⚡
+                      </motion.span>
+                      <p className="text-sm">No triggers yet</p>
+                    </motion.div>
                   )}
                 </div>
-              </div>
-
-              {/* Arrow 1 */}
-              <div className="flex items-center justify-center pt-16">
-                <div className="flex flex-col items-center">
-                  <div className="w-12 h-1 bg-gradient-to-r from-blue-400 to-yellow-400 rounded mb-1"></div>
-                  <div className="text-gray-400 text-2xl">→</div>
-                  <div className="w-12 h-1 bg-gradient-to-r from-blue-400 to-yellow-400 rounded mt-1"></div>
-                </div>
-              </div>
+              </motion.div>
 
               {/* Criteria Column */}
-              <div className="flex-1 max-w-sm">
+              <motion.div 
+                className="flex-1 max-w-sm"
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
                 <div className="text-center mb-4">
-                  <h2 className="text-xl font-bold text-yellow-900 mb-2">Criteria</h2>
-                  <p className="text-sm text-yellow-600">What conditions should be met?</p>
+                  <motion.div 
+                    className="flex items-center justify-center mb-2"
+                    whileHover={{ scale: 1.02 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <h2 className="text-xl font-bold" style={{ color: '#1c4587' }}>Criteria</h2>
+                    <motion.button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addCriteria();
+                      }}
+                      className="ml-2 w-6 h-6 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all duration-200 hover:bg-opacity-10"
+                      style={{ 
+                        borderColor: '#1c4587', 
+                        color: '#1c4587',
+                        backgroundColor: 'transparent'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1c458710'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      title="Add Criteria"
+                      whileHover={{ scale: 1.1, rotate: 90 }}
+                      whileTap={{ scale: 0.9 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      +
+                    </motion.button>
+                  </motion.div>
+                  <p className="text-sm text-gray-600">What conditions should be met?</p>
                 </div>
                 <div className="flex flex-col items-center space-y-4">
-                  {currentRule?.criteria?.map(criteria => renderCriteriaBlock(criteria))}
+                  <AnimatePresence mode="popLayout">
+                    {currentRule?.criteria?.map(criteria => renderCriteriaBlock(criteria))}
+                  </AnimatePresence>
                   {(!currentRule?.criteria || currentRule.criteria.length === 0) && (
-                    <div className="text-center text-gray-500 py-8 border-2 border-dashed border-gray-300 rounded-lg w-full max-w-xs">
-                      <span className="text-4xl mb-2 block">🔍</span>
-                      <p>No criteria yet</p>
-                      <p className="text-sm">Click "Add Criteria" above</p>
-                    </div>
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.3, delay: 0.1 }}
+                      className="text-center text-gray-400 py-6 border-2 border-dashed border-gray-200 rounded-lg w-full max-w-xs"
+                    >
+                      <motion.span 
+                        animate={{ 
+                          scale: [1, 1.1, 1],
+                          opacity: [0.5, 0.8, 0.5]
+                        }}
+                        transition={{ 
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                          delay: 1
+                        }}
+                        className="text-2xl mb-2 block"
+                      >
+                        🔍
+                      </motion.span>
+                      <p className="text-sm">No criteria yet</p>
+                    </motion.div>
                   )}
                 </div>
-              </div>
-
-              {/* Arrow 2 */}
-              <div className="flex items-center justify-center pt-16">
-                <div className="flex flex-col items-center">
-                  <div className="w-12 h-1 bg-gradient-to-r from-yellow-400 to-green-400 rounded mb-1"></div>
-                  <div className="text-gray-400 text-2xl">→</div>
-                  <div className="w-12 h-1 bg-gradient-to-r from-yellow-400 to-green-400 rounded mt-1"></div>
-                </div>
-              </div>
+              </motion.div>
 
               {/* Actions Column */}
-              <div className="flex-1 max-w-sm">
+              <motion.div 
+                className="flex-1 max-w-sm"
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+              >
                 <div className="text-center mb-4">
-                  <h2 className="text-xl font-bold text-green-900 mb-2">Actions</h2>
-                  <p className="text-sm text-green-600">What should happen?</p>
+                  <motion.div 
+                    className="flex items-center justify-center mb-2"
+                    whileHover={{ scale: 1.02 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <h2 className="text-xl font-bold" style={{ color: '#1c4587' }}>Actions</h2>
+                    <motion.button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addAction();
+                      }}
+                      className="ml-2 w-6 h-6 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all duration-200 hover:bg-opacity-10"
+                      style={{ 
+                        borderColor: '#1c4587', 
+                        color: '#1c4587',
+                        backgroundColor: 'transparent'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1c458710'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      title="Add Action"
+                      whileHover={{ scale: 1.1, rotate: 90 }}
+                      whileTap={{ scale: 0.9 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      +
+                    </motion.button>
+                  </motion.div>
+                  <p className="text-sm text-gray-600">What should happen?</p>
                 </div>
                 <div className="flex flex-col items-center space-y-4">
-                  {currentRule?.actions?.map(action => renderActionBlock(action))}
+                  <AnimatePresence mode="popLayout">
+                    {currentRule?.actions?.map(action => renderActionBlock(action))}
+                  </AnimatePresence>
                   {(!currentRule?.actions || currentRule.actions.length === 0) && (
-                    <div className="text-center text-gray-500 py-8 border-2 border-dashed border-gray-300 rounded-lg w-full max-w-xs">
-                      <span className="text-4xl mb-2 block">🎯</span>
-                      <p>No actions yet</p>
-                      <p className="text-sm">Click "Add Action" above</p>
-                    </div>
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.3, delay: 0.2 }}
+                      className="text-center text-gray-400 py-6 border-2 border-dashed border-gray-200 rounded-lg w-full max-w-xs"
+                    >
+                      <motion.span 
+                        animate={{ 
+                          scale: [1, 1.1, 1],
+                          opacity: [0.5, 0.8, 0.5]
+                        }}
+                        transition={{ 
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                          delay: 1
+                        }}
+                        className="text-2xl mb-2 block"
+                      >
+                        🎯
+                      </motion.span>
+                      <p className="text-sm">No actions yet</p>
+                    </motion.div>
                   )}
                 </div>
-              </div>
+              </motion.div>
             </div>
 
             {/* Rule Preview */}
@@ -1602,9 +1863,9 @@ export default function CreateAutomationPage() {
                 <div className="bg-white rounded-lg p-4 border border-gray-200">
                   <pre className="whitespace-pre-wrap text-sm text-gray-700 font-mono leading-relaxed">
                     {testDescription}
-                  </pre>
-                </div>
+                </pre>
               </div>
+            </div>
 
               {/* Additional Info */}
               <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1612,17 +1873,17 @@ export default function CreateAutomationPage() {
                   <div className="flex items-center mb-2">
                     <span className="text-blue-600 text-lg mr-2">⚡</span>
                     <h5 className="font-medium text-blue-900">Triggers</h5>
-                  </div>
+          </div>
                   <p className="text-sm text-blue-700">
                     {currentRule?.triggers?.length || 0} trigger(s) configured
                   </p>
-                </div>
+      </div>
                 
                 <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
                   <div className="flex items-center mb-2">
                     <span className="text-amber-600 text-lg mr-2">🔍</span>
                     <h5 className="font-medium text-amber-900">Criteria</h5>
-                  </div>
+    </div>
                   <p className="text-sm text-amber-700">
                     {currentRule?.criteria?.length || 0} criteria configured
                   </p>
