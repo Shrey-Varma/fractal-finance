@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 
 const PLAID_CLIENT_ID = process.env.PLAID_CLIENT_ID!
 const PLAID_SECRET = process.env.PLAID_SECRET!
-const PLAID_BASE = "https://sandbox.plaid.com"
+const PLAID_ENV = process.env.PLAID_ENV || 'sandbox'
+const PLAID_BASE = PLAID_ENV === 'production' ? "https://production.plaid.com" : "https://sandbox.plaid.com"
 
 export async function POST() {
     try {

@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js'
 
 const PLAID_CLIENT_ID = process.env.PLAID_CLIENT_ID!
 const PLAID_SECRET = process.env.PLAID_SECRET!
-
-const PLAID_BASE = "https://sandbox.plaid.com"
+const PLAID_ENV = process.env.PLAID_ENV || 'sandbox'
+const PLAID_BASE = PLAID_ENV === 'production' ? "https://production.plaid.com" : "https://sandbox.plaid.com"
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,7 +13,12 @@ const supabase = createClient(
 
 export async function POST() {
     try {
-        // 1. Create public token
+        // Note: This endpoint is only for sandbox testing
+        if (PLAID_ENV !== 'sandbox') {
+            return NextResponse.json({ error: 'This endpoint is only available in sandbox mode' }, { status: 400 })
+        }
+
+        // 1. Create public token (sandbox only)
         const createTokenRes = await fetch(`${PLAID_BASE}/sandbox/public_token/create`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
