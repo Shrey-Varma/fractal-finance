@@ -162,9 +162,9 @@ export default function CreateAutomationPage() {
           // If the schema is already in our rule format, use it directly
           if (automationData.schema.triggers || automationData.schema.criteria || automationData.schema.actions) {
             setCurrentRule({
-              triggers: automationData.schema.triggers || [{ id: '1', type: 'new_transaction', account: '' }],
+              triggers: automationData.schema.triggers || [{ id: 'trigger-1', type: 'new_transaction', account: '' }],
               criteria: automationData.schema.criteria || [],
-              actions: automationData.schema.actions || [{ id: '1', type: 'transfer', amount: 0 }],
+              actions: automationData.schema.actions || [{ id: 'action-1', type: 'transfer', amount: 0 }],
               tracking_start_date: automationData.schema.tracking_start_date || '',
               tracking_end_date: automationData.schema.tracking_end_date || ''
             });
@@ -178,9 +178,9 @@ export default function CreateAutomationPage() {
         console.error('Error loading automation for editing:', error);
         // Fall back to default initialization
         setCurrentRule({
-          triggers: [{ id: '1', type: 'new_transaction', account: '' }],
+          triggers: [{ id: 'trigger-1', type: 'new_transaction', account: '' }],
           criteria: [],
-          actions: [{ id: '1', type: 'transfer', amount: 0 }],
+          actions: [{ id: 'action-1', type: 'transfer', amount: 0 }],
           tracking_start_date: '',
           tracking_end_date: ''
         });
@@ -191,9 +191,9 @@ export default function CreateAutomationPage() {
     } else {
       // Initialize with a basic rule structure
       setCurrentRule({
-        triggers: [{ id: '1', type: 'new_transaction', account: '' }],
+        triggers: [{ id: 'trigger-1', type: 'new_transaction', account: '' }],
         criteria: [],
-        actions: [{ id: '1', type: 'transfer', amount: 0 }],
+        actions: [{ id: 'action-1', type: 'transfer', amount: 0 }],
         tracking_start_date: '',
         tracking_end_date: ''
       });
@@ -318,9 +318,9 @@ export default function CreateAutomationPage() {
     });
 
     return {
-      triggers: triggers.length > 0 ? triggers : [{ id: '1', type: 'new_transaction', account: '' }],
+      triggers: triggers.length > 0 ? triggers : [{ id: 'trigger-1', type: 'new_transaction', account: '' }],
       criteria,
-      actions: actions.length > 0 ? actions : [{ id: '1', type: 'transfer', amount: 0 }],
+      actions: actions.length > 0 ? actions : [{ id: 'action-1', type: 'transfer', amount: 0 }],
       tracking_start_date: globalStartDate,
       tracking_end_date: globalEndDate
     };
@@ -461,7 +461,7 @@ export default function CreateAutomationPage() {
     console.log('Adding trigger');
     if (!currentRule) return;
     const newTrigger: TriggerBlock = {
-      id: Date.now().toString(),
+      id: `trigger-${Date.now()}`,
       type: 'new_transaction',
       account: ''
     };
@@ -475,7 +475,7 @@ export default function CreateAutomationPage() {
   const addCriteria = () => {
     if (!currentRule) return;
     const newCriteria: CriteriaBlock = {
-      id: Date.now().toString()
+      id: `criteria-${Date.now()}`
     };
     setCurrentRule({
       ...currentRule,
@@ -487,7 +487,7 @@ export default function CreateAutomationPage() {
     console.log('Adding action');
     if (!currentRule) return;
     const newAction: ActionBlock = {
-      id: Date.now().toString(),
+      id: `action-${Date.now()}`,
       type: 'transfer',
       amount: 0 // Initialize with fixed amount by default
     };

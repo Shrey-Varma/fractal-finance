@@ -43,6 +43,9 @@ export default function AgentPage() {
   const [loading, setLoading] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loadingData, setLoadingData] = useState(true);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -51,7 +54,7 @@ export default function AgentPage() {
     setMessages([{
       id: '1',
       type: 'assistant',
-      content: 'Hello! I\'m your financial assistant. I can help you analyze your transaction history, spending patterns, account balances, and provide personalized financial insights. What would you like to know about your finances?',
+      content: 'Hello! I\'m your financial assistant powered by AI. I can analyze your transaction history, spending patterns, account balances, and provide personalized financial insights.\n\nI can automatically interpret time ranges from your questions (like "last month" or "recent spending"), or you can use the date picker to specify exact ranges.\n\nWhat would you like to know about your finances?',
       timestamp: new Date()
     }]);
   }, []);
@@ -136,7 +139,7 @@ ${recentTransactions.slice(0, 10).map(t =>
 ).join('\n')}`;
   };
 
-  const handleSendMessage = async (text?: string) => {
+  const handleSendMessage = async (text?: string, dateRange?: { start?: string; end?: string }) => {
     const messageText = text || inputText.trim();
     if (!messageText || loading) return;
 
@@ -152,47 +155,31 @@ ${recentTransactions.slice(0, 10).map(t =>
     setLoading(true);
 
     try {
-      const contextData = generateFinancialContext();
-      
-      const response = await fetch('/api/parse_rule', {
+      const response = await fetch('/api/agent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userInput: messageText,
-          context: 'financial_assistant',
-          systemPrompt: `You are a knowledgeable financial assistant with access to the user's complete financial data. Your role is to:
-
-1. ANALYZE financial data and provide insights about spending patterns, account balances, and transaction history
-2. ANSWER questions about specific transactions, categories, merchants, or time periods
-3. PROVIDE personalized financial advice based on the user's actual data
-4. IDENTIFY trends, unusual spending, or opportunities for savings
-5. HELP with budgeting and financial planning using real transaction data
-6. EXPLAIN financial concepts in simple, actionable terms
-
-Guidelines:
-- Always base your responses on the actual financial data provided
-- Be specific with numbers, dates, and categories when relevant
-- Provide actionable insights and recommendations
-- Be conversational but professional
-- If asked about data you don't have access to, explain what information you can see
-- Focus on being helpful and educational about personal finance
-
-User's Financial Context:
-${contextData}
-
-Respond as a helpful financial assistant who has analyzed this data and can provide specific, actionable insights.`
+          message: messageText,
+          dateRange: dateRange
         }),
       });
 
       const data = await response.json();
       
       if (response.ok && data.response) {
+        let responseContent = data.response;
+        
+        // Add date range info if it was interpreted
+        if (data.dateRange && (data.dateRange.start || data.dateRange.end)) {
+          responseContent += `\n\n*📅 Analysis performed ${data.dateRange.description} (${data.dataStats.transactionCount} transactions analyzed)*`;
+        }
+        
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
           type: 'assistant',
-          content: data.response,
+          content: responseContent,
           timestamp: new Date()
         };
         setMessages(prev => [...prev, assistantMessage]);
@@ -296,19 +283,108 @@ Respond as a helpful financial assistant who has analyzed this data and can prov
 
           {/* Input Area */}
           <div className="p-6 border-t border-gray-100">
-            <div className="flex space-x-4">
+            {/* Date Range Picker (optional) */}
+            {showDatePicker && (
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium text-gray-700">Specify Date Range (Optional)</h3>
+                  <button
+                    onClick={() => setShowDatePicker(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:outline-none text-sm"
+                      style={{ '--tw-ring-color': '#1c4587' } as React.CSSProperties & { [key: string]: string }}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">End Date</label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:outline-none text-sm"
+                      style={{ '--tw-ring-color': '#1c4587' } as React.CSSProperties & { [key: string]: string }}
+                    />
+                  </div>
+                </div>
+                <div className="flex space-x-2 mt-3">
+                  <button
+                    onClick={() => {
+                      setStartDate('');
+                      setEndDate('');
+                    }}
+                    className="px-3 py-1 text-xs text-gray-600 hover:text-gray-800"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    onClick={() => {
+                      const today = new Date();
+                      const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                      const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+                      setStartDate(lastMonth.toISOString().split('T')[0]);
+                      setEndDate(lastMonthEnd.toISOString().split('T')[0]);
+                    }}
+                    className="px-3 py-1 text-xs text-white rounded"
+                    style={{ backgroundColor: '#1c4587' }}
+                  >
+                    Last Month
+                  </button>
+                  <button
+                    onClick={() => {
+                      const today = new Date();
+                      const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+                      setStartDate(thirtyDaysAgo.toISOString().split('T')[0]);
+                      setEndDate(today.toISOString().split('T')[0]);
+                    }}
+                    className="px-3 py-1 text-xs text-white rounded"
+                    style={{ backgroundColor: '#1c4587' }}
+                  >
+                    Last 30 Days
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex space-x-2">
               <input
                 type="text"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                placeholder="Ask me about your finances..."
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const dateRange = (startDate || endDate) ? { start: startDate, end: endDate } : undefined;
+                    handleSendMessage(undefined, dateRange);
+                  }
+                }}
+                placeholder="Ask me about your finances... (I can interpret dates from your question)"
                 className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:outline-none text-base"
                 style={{ '--tw-ring-color': '#1c4587' } as React.CSSProperties & { [key: string]: string }}
                 disabled={loading || loadingData}
               />
               <button
-                onClick={() => handleSendMessage()}
+                onClick={() => setShowDatePicker(!showDatePicker)}
+                className="px-3 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                title="Set specific date range"
+                disabled={loading || loadingData}
+              >
+                📅
+              </button>
+              <button
+                onClick={() => {
+                  const dateRange = (startDate || endDate) ? { start: startDate, end: endDate } : undefined;
+                  handleSendMessage(undefined, dateRange);
+                }}
                 disabled={loading || !inputText.trim() || loadingData}
                 className="text-white px-6 py-3 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                 style={{ backgroundColor: '#1c4587' }}
@@ -318,6 +394,22 @@ Respond as a helpful financial assistant who has analyzed this data and can prov
                 Send
               </button>
             </div>
+            
+            {(startDate || endDate) && (
+              <div className="mt-2 text-xs text-gray-600">
+                📅 Date range: {startDate || 'Any'} to {endDate || 'Any'}
+                <button 
+                  onClick={() => {
+                    setStartDate('');
+                    setEndDate('');
+                    setShowDatePicker(false);
+                  }}
+                  className="ml-2 text-blue-600 hover:underline"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
