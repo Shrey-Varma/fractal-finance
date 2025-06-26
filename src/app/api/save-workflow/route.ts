@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
-import { processBalanceThresholds, processNewTransactionTriggers } from "@/utils/balanceTriggerEngine";
+import { processBalanceThresholds, processNewTransactionTriggers, processNowTriggerWorkflow } from "@/utils/balanceTriggerEngine";
 
 export const runtime = "nodejs";
 
@@ -68,13 +68,17 @@ export async function POST(req: NextRequest) {
     const hasNewTransactionTrigger = workflow?.triggers?.some((trigger: any) => 
       trigger.type === 'new_transaction'
     );
+    const hasNowTrigger = workflow?.triggers?.some((trigger: any) => 
+      trigger.type === 'now'
+    );
 
     // Execute triggers immediately if they are supported for immediate execution
-    if (hasBalanceThresholdTrigger || hasNewTransactionTrigger) {
+    if (hasBalanceThresholdTrigger || hasNewTransactionTrigger || hasNowTrigger) {
       console.log('🎯 [SAVE-WORKFLOW] Immediate execution triggers detected...');
       let allResults = {
         balanceThreshold: null as any,
         newTransaction: null as any,
+        now: null as any,
         executed: false,
         totalExecutions: 0,
         totalNotifications: 0
@@ -99,6 +103,18 @@ export async function POST(req: NextRequest) {
           allResults.totalExecutions += allResults.newTransaction.triggersExecuted;
           allResults.totalNotifications += allResults.newTransaction.notificationsSent;
           console.log('✅ [SAVE-WORKFLOW] New transaction check completed:', allResults.newTransaction);
+        }
+        
+        // Run 'now' trigger: for testing, treat as both balance and transaction checks
+        if (hasNowTrigger) {
+          console.log('⚡ [SAVE-WORKFLOW] Running NOW trigger (test immediate check)...');
+          // For 'now', actually run the workflow logic and return a detailed summary
+          const nowResult = await processNowTriggerWorkflow(workflow, userData.user.id);
+          allResults.now = nowResult;
+          allResults.executed = true;
+          allResults.totalExecutions += nowResult.triggersMet;
+          allResults.totalNotifications += nowResult.notificationsSent;
+          console.log('✅ [SAVE-WORKFLOW] NOW trigger check completed:', allResults.now);
         }
         
         return NextResponse.json({ 

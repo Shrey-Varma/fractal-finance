@@ -77,6 +77,10 @@ export async function parseWorkflowText(text: string, userReprompt?: string, cur
   const nextWeekSunday = new Date(nextWeekMonday);
   nextWeekSunday.setDate(nextWeekMonday.getDate() + 6);
   
+  // This month's first and last day
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0); // Last day of current month
+  
   const currentDateInfo = {
     date: formatDate(now),
     dayOfWeek: days[now.getDay()],
@@ -94,6 +98,10 @@ export async function parseWorkflowText(text: string, userReprompt?: string, cur
     nextWeek: {
       monday: formatDate(nextWeekMonday),
       sunday: formatDate(nextWeekSunday)
+    },
+    thisMonth: {
+      start: formatDate(thisMonthStart),
+      end: formatDate(thisMonthEnd)
     }
   };
 
@@ -110,6 +118,7 @@ When users mention relative dates, calculate the actual dates based on today's i
 - "this weekend" = ${currentDateInfo.thisWeekend.saturday} to ${currentDateInfo.thisWeekend.sunday}
 - "next week" = ${currentDateInfo.nextWeek.monday} to ${currentDateInfo.nextWeek.sunday}
 - "this week" = ${currentDateInfo.thisWeek.monday} to ${currentDateInfo.thisWeek.sunday}
+- "this month" = ${currentDateInfo.thisMonth.start} to ${currentDateInfo.thisMonth.end}
 - "tomorrow" = ${currentDateInfo.tomorrow}
 - "today" = ${currentDateInfo.date}
 - "next saturday" = ${currentDateInfo.thisWeekend.saturday}
@@ -320,9 +329,9 @@ Should create:
 Input: "If I spend more than $200 on restaurants this month, notify me"
 
 Should create:
-- Trigger: New transaction - account: "" (leave blank), tracking_start_date: "now", tracking_end_date: "indefinite"
-- Condition: Spending threshold (> $200) with category: "restaurants", account: "" (leave blank), tracking_start_date: "now", tracking_end_date: "indefinite"
-- Action: Notify - REQUIRES message: "You've spent more than $200 on restaurants this month", tracking_start_date: "now", tracking_end_date: "indefinite"
+- Trigger: New transaction - account: "" (leave blank), tracking_start_date: "${currentDateInfo.thisMonth.start}", tracking_end_date: "${currentDateInfo.thisMonth.end}"
+- Condition: Spending threshold (> $200) with category: "restaurants", account: "" (leave blank), tracking_start_date: "${currentDateInfo.thisMonth.start}", tracking_end_date: "${currentDateInfo.thisMonth.end}"
+- Action: Notify - REQUIRES message: "You've spent more than $200 on restaurants this month", tracking_start_date: "${currentDateInfo.thisMonth.start}", tracking_end_date: "${currentDateInfo.thisMonth.end}"
 
 Respond ONLY with a valid JSON workflow object.
 `;

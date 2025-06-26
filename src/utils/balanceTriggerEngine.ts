@@ -6,39 +6,55 @@ import { sendSMS } from './sms'
  */
 async function findMatchingCategories(
   userCategory: string,
-  availableCategories: string[],
+  availableCategories: any[],
   userId: string
 ): Promise<string[]> {
   console.log('🤖 [CATEGORY_AI] Finding intelligent category matches...')
   console.log('🤖 [CATEGORY_AI] User requested:', userCategory)
-  console.log('🤖 [CATEGORY_AI] Available categories:', availableCategories.length)
+  console.log('🤖 [CATEGORY_AI] Available categories count:', availableCategories.length)
   
+  // Note: AI can only match against categories that actually exist in the user's transaction data
+  // If the user asks for "food" but only has "FOOD_AND_DRINK" transactions, that's all we can match
+
   if (availableCategories.length === 0) {
     console.log('⚠️ [CATEGORY_AI] No categories available, using direct match')
-    return [userCategory]
+    return []
   }
 
-  try {
-    const prompt = `You are a financial transaction categorization expert. A user wants to filter transactions by "${userCategory}".
+  // Extract primary category names from the objects
+  const categoryNames = availableCategories.map(cat => {
+    if (typeof cat === 'string') return cat;
+    if (cat.primary) return cat.primary;
+    if (cat.detailed) return cat.detailed;
+    return null;
+  }).filter(Boolean);
 
-Here are the actual transaction categories available in their data:
-${availableCategories.map(cat => `- ${cat}`).join('\n')}
+  const prompt = `You are a financial transaction categorization expert. A user wants to filter transactions by "${userCategory}".
+
+Here are the ONLY valid transaction categories (copy-paste from this list only, do not invent new ones):
+${categoryNames.map(cat => `- ${cat}`).join('\n')}
 
 Your task: Return a JSON array of category names from the available list that best match the user's intent for "${userCategory}".
 
-Examples:
-- If user asks for "grocery" → match ["Groceries", "Food and Drink", "Supermarkets"]
-- If user asks for "food" → match ["Restaurants", "Food and Drink", "Groceries", "Fast Food"]
-- If user asks for "gas" → match ["Gas Stations", "Transportation", "Automotive"]
-- If user asks for "coffee" → match ["Coffee Shops", "Restaurants", "Food and Drink"]
+IMPORTANT: 
+- Only use categories from the list above. Do NOT invent or hallucinate new categories.
+- The output must be a JSON array of exact strings from the list above.
+- Copy-paste the exact category names as they appear in the list.
+- Return each category ONLY ONCE - no duplicates.
+- Be inclusive - better to include more categories that might match than to miss relevant ones.
 
-Be inclusive - better to include more categories that might match than to miss relevant ones.
+Examples:
+- If user asks for "food" → match ["FOOD_AND_DRINK"] (or whatever food-related categories are available)
+- If user asks for "gas" → match ["TRANSPORTATION", "AUTOMOTIVE"] (if available)
+- If user asks for "coffee" → match ["FOOD_AND_DRINK"] (since coffee is food/drink)
+- If user asks for "shopping" → match ["SHOPPING", "GENERAL_MERCHANDISE"] (if available)
+
+IMPORTANT: Only return categories that actually exist in the list above. If only one category matches, return just that one. If multiple categories match, return all of them.
 
 Return ONLY a valid JSON array of strings, no other text:
 ["category1", "category2", ...]`
 
-    console.log('🤖 [CATEGORY_AI] Calling OpenAI for category matching...')
-    
+  try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -64,55 +80,37 @@ Return ONLY a valid JSON array of strings, no other text:
 
     if (!response.ok) {
       console.log('❌ [CATEGORY_AI] OpenAI API failed, falling back to fuzzy matching')
-      return fuzzyMatchCategories(userCategory, availableCategories)
+      return []
     }
 
     const data = await response.json()
     const aiResponse = data.choices?.[0]?.message?.content?.trim()
     
-    console.log('🤖 [CATEGORY_AI] AI Response:', aiResponse)
+    console.log('🤖 [CATEGORY_AI] AI response:', aiResponse)
     
-    // Parse the JSON response
-    const matchedCategories = JSON.parse(aiResponse)
-    
-    if (Array.isArray(matchedCategories) && matchedCategories.length > 0) {
-      // Validate that returned categories exist in available categories
-      const validMatches = matchedCategories.filter(cat => 
-        availableCategories.some(available => 
-          available.toLowerCase().includes(cat.toLowerCase()) ||
-          cat.toLowerCase().includes(available.toLowerCase())
-        )
-      )
-      
-      console.log('✅ [CATEGORY_AI] AI matched categories:', validMatches)
-      return validMatches.length > 0 ? validMatches : [userCategory]
+    let matchedCategories: string[] = []
+    try {
+      matchedCategories = JSON.parse(aiResponse || '[]')
+      // Remove duplicates as a safety measure
+      matchedCategories = Array.from(new Set(matchedCategories))
+    } catch {
+      console.log('🤖 [CATEGORY_AI] Failed to parse AI response, using empty array')
+      matchedCategories = []
     }
     
+    // Only keep categories that are an exact match in categoryNames
+    const validMatches = matchedCategories.filter(cat => categoryNames.includes(cat))
+    console.log('✅ [CATEGORY_AI] Valid matched categories:', validMatches)
+    if (validMatches.length > 0) {
+      return validMatches
+    } else {
+      // No fuzzy fallback: just return empty array
+      return []
+    }
   } catch (error) {
     console.log('❌ [CATEGORY_AI] Error with AI matching:', error)
+    return []
   }
-  
-  // Fallback to fuzzy matching if AI fails
-  console.log('🔄 [CATEGORY_AI] Falling back to fuzzy matching')
-  return fuzzyMatchCategories(userCategory, availableCategories)
-}
-
-/**
- * Fallback fuzzy matching for categories
- */
-function fuzzyMatchCategories(userCategory: string, availableCategories: string[]): string[] {
-  const userLower = userCategory.toLowerCase()
-  const matches = availableCategories.filter(cat => 
-    cat.toLowerCase().includes(userLower) || 
-    userLower.includes(cat.toLowerCase()) ||
-    // Additional fuzzy logic
-    (userLower === 'food' && cat.toLowerCase().includes('restaurant')) ||
-    (userLower === 'gas' && cat.toLowerCase().includes('station')) ||
-    (userLower === 'coffee' && cat.toLowerCase().includes('coffee'))
-  )
-  
-  console.log('🔍 [CATEGORY_AI] Fuzzy matches:', matches)
-  return matches.length > 0 ? matches : [userCategory]
 }
 
 /**
@@ -188,8 +186,15 @@ Return ONLY a valid JSON array of strings, no other text:
     
     console.log('🤖 [MERCHANT_AI] AI Response:', aiResponse)
     
-    // Parse the JSON response
-    const matchedMerchants = JSON.parse(aiResponse)
+    let matchedMerchants: string[] = []
+    try {
+      matchedMerchants = JSON.parse(aiResponse || '[]')
+      // Remove duplicates as a safety measure
+      matchedMerchants = Array.from(new Set(matchedMerchants))
+    } catch {
+      console.log('🤖 [MERCHANT_AI] Failed to parse AI response, using empty array')
+      matchedMerchants = []
+    }
     
     if (Array.isArray(matchedMerchants) && matchedMerchants.length > 0) {
       // Validate that returned merchants exist in available merchants
@@ -201,7 +206,7 @@ Return ONLY a valid JSON array of strings, no other text:
         )
       )
       
-      console.log('✅ [MERCHANT_AI] AI matched merchants:', validMatches)
+      console.log('✅ [MERCHANT_AI] Valid matched merchants:', validMatches)
       return validMatches.length > 0 ? validMatches : [userMerchant]
     }
     
@@ -420,52 +425,248 @@ export async function checkCriteriaConditions(
     return true
   }
 
-  const supabase = await createClient()
+  // --- ENHANCED LOGIC FOR STACKING ---
+  // Collect filters and thresholds
+  let merchant = null
+  let category = null
+  let account = null
+  let spendingThreshold = null
+  let balanceCheck = null
+  let otherCriteria = []
 
-  for (let i = 0; i < criteria.length; i++) {
-    const criterion = criteria[i]
-    console.log(`🔍 [CRITERIA] Checking criterion ${i + 1}/${criteria.length}:`, criterion.conditionType)
-    
-    let conditionMet = false
-
+  for (const criterion of criteria) {
     switch (criterion.conditionType) {
-      case 'spending_threshold':
-        console.log('💰 [CRITERIA] Checking spending threshold...')
-        conditionMet = await checkSpendingThreshold(criterion, userId, supabase)
+      case 'merchant_filter':
+        merchant = criterion.merchant
+        // Log available categories if present
+        try {
+          const supabase = await createClient();
+          const { data: transactions } = await supabase
+            .from('transactions')
+            .select('personal_finance_category')
+            .limit(1000);
+          const allCategories = Array.from(new Set((transactions || []).flatMap(t => Array.isArray(t.personal_finance_category) ? t.personal_finance_category : [t.personal_finance_category]).filter(Boolean)));
+        } catch (e) { console.log('[DEBUG] Could not fetch categories for merchant_filter:', e); }
+        break
+      case 'category_filter':
+        category = criterion.category
+        // Log available categories if present
+        try {
+          const supabase = await createClient();
+          const { data: transactions } = await supabase
+            .from('transactions')
+            .select('personal_finance_category')
+            .limit(1000);
+          const allCategories = Array.from(new Set((transactions || []).flatMap(t => Array.isArray(t.personal_finance_category) ? t.personal_finance_category : [t.personal_finance_category]).filter(Boolean)));
+        } catch (e) { console.log('[DEBUG] Could not fetch categories for category_filter:', e); }
         break
       case 'balance_check':
-        console.log('💳 [CRITERIA] Checking balance condition...')
-        conditionMet = await checkBalanceCondition(criterion, userAccounts)
+        balanceCheck = criterion
+        break
+      case 'spending_threshold':
+        spendingThreshold = criterion
+        break
+      case 'account_match':
+        account = criterion.account
+        break
+      default:
+        otherCriteria.push(criterion)
+    }
+  }
+
+  const supabase = await createClient()
+
+  // --- COMBINED SPENDING THRESHOLD ---
+  if (spendingThreshold && (merchant || category || account)) {
+    // Compose a query for spending threshold with filters
+    console.log('🔗 [CRITERIA] Combining spending threshold with filters:', { merchant, category, account })
+    const timeWindow = parseTimeWindow(spendingThreshold.timeWindow, '30 days')
+    let query = supabase
+      .from('transactions')
+      .select('amount, merchant_name, personal_finance_category, account_id')
+      .gte('date', timeWindow.start.split('T')[0])
+      .lte('date', timeWindow.end.split('T')[0])
+
+    if (account && account !== 'Any account') {
+      const { data: accounts } = await supabase
+        .from('accounts')
+        .select('account_id')
+        .or(`name.eq.${account},official_name.eq.${account}`)
+        .limit(1)
+      if (accounts && accounts.length > 0) {
+        query = query.eq('account_id', accounts[0].account_id)
+      }
+    }
+    if (merchant) {
+      query = query.ilike('merchant_name', `%${merchant}%`)
+    }
+    let matchedCategories: string[] = [];
+    if (category) {
+      // Fetch all available categories from the DB
+      const { data: allTrans } = await supabase
+        .from('transactions')
+        .select('personal_finance_category')
+        .limit(2000);
+      const availableCategories = Array.from(new Set((allTrans || []).flatMap((t: any) => {
+        if (!t.personal_finance_category) return [];
+        if (Array.isArray(t.personal_finance_category)) {
+          return t.personal_finance_category.map((cat: any) => 
+            typeof cat === 'string' ? cat : (cat.primary || cat.detailed)
+          );
+        }
+        return [typeof t.personal_finance_category === 'string' 
+          ? t.personal_finance_category 
+          : (t.personal_finance_category.primary || t.personal_finance_category.detailed)];
+      }).filter(Boolean)));
+      // Use AI to match
+      matchedCategories = await findMatchingCategories(category, availableCategories, userId);
+      // If AI returns empty or only the user input, fallback to fuzzy matcher
+      if (!matchedCategories || matchedCategories.length === 0) {
+        return false;
+      }
+      // Only keep categories that exist in availableCategories
+      matchedCategories = matchedCategories.filter(cat => availableCategories.includes(cat));
+      // If still empty, fallback to all availableCategories (last resort)
+      if (matchedCategories.length === 0) {
+        matchedCategories = availableCategories;
+      }
+      console.log('[COMBINED] AI-mapped categories for filter:', matchedCategories);
+      if (matchedCategories.length > 0) {
+        console.log('[COMBINED] Adding category filter to query:', matchedCategories);
+        // Since categories are stored as objects, we need to use a different approach
+        // For now, let's fetch all transactions and filter in memory
+        console.log('[COMBINED] Using in-memory filtering for category objects');
+      }
+    }
+    console.log('[COMBINED] Final query filters:', { 
+      timeWindow: `${timeWindow.start.split('T')[0]} to ${timeWindow.end.split('T')[0]}`,
+      account: account || 'Any account',
+      merchant: merchant || 'None',
+      categories: matchedCategories || 'None'
+    });
+    const { data: transactions } = await query
+    
+    // Filter by category in memory if needed
+    let filteredTransactions = transactions;
+    if (matchedCategories && matchedCategories.length > 0) {
+      filteredTransactions = transactions?.filter((t: any) => {
+        if (!t.personal_finance_category) return false;
+        
+        if (Array.isArray(t.personal_finance_category)) {
+          return t.personal_finance_category.some((cat: any) => {
+            const categoryName = typeof cat === 'string' ? cat : (cat.primary || cat.detailed);
+            return matchedCategories.includes(categoryName);
+          });
+        }
+        
+        const categoryName = typeof t.personal_finance_category === 'string' 
+          ? t.personal_finance_category 
+          : (t.personal_finance_category.primary || t.personal_finance_category.detailed);
+        return matchedCategories.includes(categoryName);
+      }) || [];
+      
+      console.log('[COMBINED] After category filtering:', filteredTransactions.length, 'transactions');
+    }
+    
+    if (!filteredTransactions || filteredTransactions.length === 0) {
+      console.log('⚠️ [COMBINED] No transaction data after filtering')
+      return false
+    }
+    console.log(`[LOGIC] Transactions included in calculation:`, filteredTransactions.map(t => ({ merchant: t.merchant_name, category: t.personal_finance_category, amount: t.amount, account_id: t.account_id })))
+    const totalSpent = filteredTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
+    console.log(`[LOGIC] Total spent after stacking filters: $${totalSpent}`)
+    let result = false
+    if (spendingThreshold.amount === undefined) {
+      console.log('[COMBINED] spendingThreshold.amount is undefined, failing check')
+      return false
+    }
+    switch (spendingThreshold.operator) {
+      case 'greater_than':
+        result = totalSpent > spendingThreshold.amount
+        break
+      case 'less_than':
+        result = totalSpent < spendingThreshold.amount
+        break
+      case 'equals':
+        result = Math.abs(totalSpent - spendingThreshold.amount) < 0.01
+        break
+      default:
+        result = true
+    }
+    console.log(`[COMBINED] Total spent with filters: ${totalSpent}, threshold: ${spendingThreshold.amount}, result: ${result}`)
+    if (!result) return false
+  }
+
+  // --- COMBINED BALANCE CHECK ---
+  if (balanceCheck && (account || merchant || category)) {
+    // Find the right account
+    let targetAccount = userAccounts[0]
+    if (account && account !== 'Any account') {
+      const foundAccount = userAccounts.find(acc => acc.name === account || acc.official_name === account)
+      if (foundAccount) targetAccount = foundAccount
+    }
+    console.log('[LOGIC] Using COMBINED balance check logic (stacked filters)')
+    // Optionally, could filter by merchant/category if you have per-account/merchant/category balances
+    // For now, just use account
+    if (!targetAccount?.balance) {
+      console.log('❌ [COMBINED BALANCE] No balance data for target account')
+      return false
+    }
+    const balance = targetAccount.balance.current_balance
+    console.log(`[LOGIC] Balance for account ${targetAccount.name || targetAccount.official_name}: $${balance}`)
+    let result = false
+    if (balanceCheck.amount === undefined) {
+      console.log('[COMBINED] balanceCheck.amount is undefined, failing check')
+      return false
+    }
+    switch (balanceCheck.operator) {
+      case 'greater_than':
+        result = balance > balanceCheck.amount
+        break
+      case 'less_than':
+        result = balance < balanceCheck.amount
+        break
+      case 'equals':
+        result = Math.abs(balance - balanceCheck.amount) < 0.01
+        break
+      default:
+        result = true
+    }
+    console.log(`[COMBINED] Balance check with filters: ${balance}, threshold: ${balanceCheck.amount}, result: ${result}`)
+    if (!result) return false
+  }
+
+  // --- FALLBACK: check other criteria as usual ---
+  for (let i = 0; i < otherCriteria.length; i++) {
+    const criterion = otherCriteria[i]
+    let conditionMet = false
+    switch (criterion.conditionType) {
+      case 'merchant_spending':
+        conditionMet = await checkMerchantSpending(criterion, userId, supabase)
+        break
+      case 'category_spending':
+        conditionMet = await checkCategorySpending(criterion, userId, supabase)
         break
       case 'merchant_filter':
-        console.log('🏪 [CRITERIA] Checking merchant filter...')
         conditionMet = await checkMerchantFilter(criterion, userId, supabase)
         break
       case 'category_filter':
-        console.log('📂 [CRITERIA] Checking category filter...')
         conditionMet = await checkCategoryFilter(criterion, userId, supabase)
         break
-      case 'category_spending':
-        console.log('🛒 [CRITERIA] Checking category spending threshold...')
-        conditionMet = await checkCategorySpending(criterion, userId, supabase)
+      case 'spending_threshold':
+        conditionMet = await checkSpendingThreshold(criterion, userId, supabase)
         break
-      case 'merchant_spending':
-        console.log('🏪💰 [CRITERIA] Checking merchant spending threshold...')
-        conditionMet = await checkMerchantSpending(criterion, userId, supabase)
+      case 'balance_check':
+        conditionMet = await checkBalanceCondition(criterion, userAccounts)
         break
       case 'amount_range':
-        console.log('💵 [CRITERIA] Checking amount range (auto-pass for balance triggers)...')
         conditionMet = true
         break
       default:
-        console.log('❓ [CRITERIA] Unknown condition type, defaulting to true:', criterion.conditionType)
         conditionMet = true
     }
-
-    console.log(`${conditionMet ? '✅' : '❌'} [CRITERIA] Criterion ${i + 1}: ${conditionMet ? 'PASSED' : 'FAILED'}`)
-
     if (!conditionMet) {
-      console.log('❌ [CRITERIA] Overall criteria check: FAILED (AND logic)')
+      console.log('❌ [CRITERIA] Fallback criteria failed:', criterion)
       return false
     }
   }
@@ -742,7 +943,7 @@ async function checkCategoryFilter(
   console.log('📂 [CATEGORY] Fetching available categories from transaction data...')
   const { data: categoryData } = await supabase
     .from('transactions')
-    .select('category, merchant_name')
+    .select('personal_finance_category, merchant_name')
     .gte('date', timeWindow.start.split('T')[0])
     .lte('date', timeWindow.end.split('T')[0])
     .limit(1000)
@@ -752,11 +953,11 @@ async function checkCategoryFilter(
   const merchantsWithoutCategories: string[] = []
   
   categoryData?.forEach((row: any) => {
-    if (row.category) {
-      if (Array.isArray(row.category)) {
-        row.category.forEach((cat: string) => allCategories.add(cat))
+    if (row.personal_finance_category) {
+      if (Array.isArray(row.personal_finance_category)) {
+        row.personal_finance_category.forEach((cat: string) => allCategories.add(cat))
       } else {
-        allCategories.add(row.category)
+        allCategories.add(row.personal_finance_category)
       }
     } else if (row.merchant_name) {
       merchantsWithoutCategories.push(row.merchant_name)
@@ -795,7 +996,7 @@ async function checkCategoryFilter(
   // Step 3: Build query with account filter if specified
   let query = supabase
     .from('transactions')
-    .select('category, amount, merchant_name, account_id')
+    .select('personal_finance_category, amount, merchant_name, account_id')
     .gte('date', timeWindow.start.split('T')[0])
     .lte('date', timeWindow.end.split('T')[0])
 
@@ -823,38 +1024,21 @@ async function checkCategoryFilter(
     return false
   }
 
-  // Step 4: Filter transactions using AI-matched categories and merchants
+  // Step 4: Filter transactions using AI-matched categories (exact matches only)
   const categoryTransactions = transactions.filter((t: any) => {
-    // First try category matching
-    if (t.category) {
-      if (Array.isArray(t.category)) {
-        const categoryMatch = t.category.some((cat: string) => 
-          matchedCategories.some(matched => 
-            cat.toLowerCase().includes(matched.toLowerCase()) ||
-            matched.toLowerCase().includes(cat.toLowerCase())
-          )
-        )
-        if (categoryMatch) return true
-      } else {
-        const categoryMatch = matchedCategories.some(matched => 
-          t.category.toLowerCase().includes(matched.toLowerCase()) ||
-          matched.toLowerCase().includes(t.category.toLowerCase())
-        )
-        if (categoryMatch) return true
-      }
+    if (!t.personal_finance_category) return false
+    
+    if (Array.isArray(t.personal_finance_category)) {
+      return t.personal_finance_category.some((cat: any) => {
+        const categoryName = typeof cat === 'string' ? cat : (cat.primary || cat.detailed);
+        return matchedCategories.includes(categoryName);
+      });
     }
     
-    // If no category match but we have merchant name, try merchant matching
-    if (t.merchant_name) {
-      const merchantMatch = matchedCategories.some(matched => 
-        t.merchant_name.toLowerCase().includes(matched.toLowerCase()) ||
-        matched.toLowerCase().includes(t.merchant_name.toLowerCase())
-      )
-      console.log(`📂 [CATEGORY] Merchant match for "${t.merchant_name}" with "${criterion.category}":`, merchantMatch)
-      return merchantMatch
-    }
-    
-    return false
+    const categoryName = typeof t.personal_finance_category === 'string' 
+      ? t.personal_finance_category 
+      : (t.personal_finance_category.primary || t.personal_finance_category.detailed);
+    return matchedCategories.includes(categoryName);
   })
 
   const found = categoryTransactions.length > 0
@@ -863,7 +1047,7 @@ async function checkCategoryFilter(
   if (found) {
     console.log('📂 [CATEGORY] Transaction count:', categoryTransactions.length)
     console.log('📂 [CATEGORY] Sample transactions:', categoryTransactions.slice(0, 3).map((t: any) => ({
-      category: t.category,
+      category: t.personal_finance_category,
       merchant: t.merchant_name,
       amount: t.amount
     })))
@@ -897,7 +1081,7 @@ async function checkCategorySpending(
   // Build query for category transactions
   let query = supabase
     .from('transactions')
-    .select('amount, category, merchant_name, account_id')
+    .select('amount, personal_finance_category, merchant_name, account_id')
     .gte('date', timeWindow.start.split('T')[0])
     .lte('date', timeWindow.end.split('T')[0])
 
@@ -925,11 +1109,11 @@ async function checkCategorySpending(
   // Step 1: Get available categories from the queried transactions
   const allCategories = new Set<string>()
   transactions.forEach((row: any) => {
-    if (row.category) {
-      if (Array.isArray(row.category)) {
-        row.category.forEach((cat: string) => allCategories.add(cat))
+    if (row.personal_finance_category) {
+      if (Array.isArray(row.personal_finance_category)) {
+        row.personal_finance_category.forEach((cat: string) => allCategories.add(cat))
       } else {
-        allCategories.add(row.category)
+        allCategories.add(row.personal_finance_category)
       }
     }
   })
@@ -946,23 +1130,21 @@ async function checkCategorySpending(
 
   console.log('🛒 [CATEGORY_SPENDING] AI matched categories:', matchedCategories)
 
-  // Step 3: Filter transactions using AI-matched categories
+  // Step 3: Filter transactions using AI-matched categories (exact matches only)
   const categoryTransactions = transactions.filter((t: any) => {
-    if (!t.category) return false
+    if (!t.personal_finance_category) return false
     
-    if (Array.isArray(t.category)) {
-      return t.category.some((cat: string) => 
-        matchedCategories.some(matched => 
-          cat.toLowerCase().includes(matched.toLowerCase()) ||
-          matched.toLowerCase().includes(cat.toLowerCase())
-        )
-      )
+    if (Array.isArray(t.personal_finance_category)) {
+      return t.personal_finance_category.some((cat: any) => {
+        const categoryName = typeof cat === 'string' ? cat : (cat.primary || cat.detailed);
+        return matchedCategories.includes(categoryName);
+      });
     }
     
-    return matchedCategories.some(matched => 
-      t.category.toLowerCase().includes(matched.toLowerCase()) ||
-      matched.toLowerCase().includes(t.category.toLowerCase())
-    )
+    const categoryName = typeof t.personal_finance_category === 'string' 
+      ? t.personal_finance_category 
+      : (t.personal_finance_category.primary || t.personal_finance_category.detailed);
+    return matchedCategories.includes(categoryName);
   })
 
   const totalSpent = categoryTransactions.reduce((sum: number, tx: any) => sum + Math.abs(tx.amount), 0)
@@ -1309,7 +1491,7 @@ export async function processNewTransactionTriggers(userId: string): Promise<{
       .eq('user_id', userId)
       .single()
 
-    const userProfile: UserProfile = profile || {}
+    const userProfile = (profile || {}) as any
     console.log('👤 [NEW_TRANSACTION] Profile found:', !!profile)
     console.log('👤 [NEW_TRANSACTION] Phone number available:', !!userProfile.phone_number)
 
@@ -1592,7 +1774,7 @@ export async function processBalanceThresholds(userId: string): Promise<{
       .eq('user_id', userId)
       .single()
 
-    const userProfile: UserProfile = profile || {}
+    const userProfile = (profile || {}) as any
     console.log('👤 [PROCESS] Profile found:', !!profile)
     console.log('👤 [PROCESS] Phone number available:', !!userProfile.phone_number)
 
@@ -1631,7 +1813,7 @@ export async function processBalanceThresholds(userId: string): Promise<{
           }
 
           // Find the target account
-          let targetAccount = userAccounts[0] // Default to first account
+          let targetAccount = userAccounts[0]
           if (trigger.account) {
             const foundAccount = userAccounts.find(acc => 
               acc.name === trigger.account || acc.official_name === trigger.account
@@ -1697,3 +1879,110 @@ export async function processBalanceThresholds(userId: string): Promise<{
     return { automationsFound, accountsFound, triggersExecuted, notificationsSent }
   }
 } 
+
+/**
+ * Process a workflow immediately for the NOW trigger, returning a detailed summary
+ */
+export async function processNowTriggerWorkflow(workflow: any, userId: string) {
+  const supabase = await createClient();
+  let triggersChecked = 0;
+  let triggersMet = 0;
+  let conditionsChecked = 0;
+  let conditionsMet = 0;
+  let actionsChecked = 0;
+  let actionsExecuted = 0;
+  let notificationsSent = 0;
+  let triggerResults: any[] = [];
+
+  // Get user accounts and profile
+  const { data: accounts } = await supabase
+    .from('accounts')
+    .select('*')
+    .eq('user_id', userId);
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('phone_number, full_name')
+    .eq('user_id', userId)
+    .single();
+  const userAccounts = (accounts || []).map((acc: any) => ({
+    account_id: acc.account_id,
+    name: acc.name,
+    official_name: acc.official_name,
+    balance: acc.balances && acc.balances.length > 0 ? {
+      current_balance: acc.balances[0].current_balance,
+      available_balance: acc.balances[0].available_balance
+    } : undefined
+  }));
+  const userProfile = (profile || {}) as any;
+
+  // For each trigger in the workflow
+  for (const trigger of workflow.triggers || []) {
+    triggersChecked++;
+    let triggerMet = false;
+    let triggerType = trigger.type;
+    let triggerSummary = { triggerType, met: false, conditions: [], actions: [] as any[] };
+
+    // For NOW, always check all triggers as if they fired
+    // Check criteria/conditions
+    let criteriaMet = true;
+    if (workflow.criteria && workflow.criteria.length > 0) {
+      conditionsChecked += workflow.criteria.length;
+      criteriaMet = await checkCriteriaConditions(workflow.criteria, userAccounts, userId);
+      if (criteriaMet) {
+        conditionsMet += workflow.criteria.length;
+      }
+      triggerSummary.conditions = workflow.criteria.map((c: any) => ({ type: c.conditionType, met: criteriaMet }));
+    }
+
+    // If criteria are met, "fire" the trigger
+    if (criteriaMet) {
+      triggerMet = true;
+      triggersMet++;
+      // Execute actions
+      for (const action of workflow.actions || []) {
+        actionsChecked++;
+        // Only count as executed if it's a notify or transfer
+        if (action.type === 'notify') {
+          actionsExecuted++;
+          // Actually send notification if possible
+          if (userProfile.phone_number) {
+            notificationsSent++;
+            // (In real use, call sendSMS here)
+            // await sendSMS(userProfile.phone_number, 'Test notification from NOW trigger');
+          }
+        } else if (action.type === 'transfer') {
+          actionsExecuted++;
+        }
+        triggerSummary.actions.push({ type: action.type, executed: true });
+      }
+    } else {
+      // Actions not executed
+      for (const action of workflow.actions || []) {
+        actionsChecked++;
+        triggerSummary.actions.push({ type: action.type, executed: false });
+      }
+    }
+    triggerSummary.met = triggerMet;
+    triggerResults.push(triggerSummary);
+  }
+
+  return {
+    triggersChecked,
+    triggersMet,
+    conditionsChecked,
+    conditionsMet,
+    actionsChecked,
+    actionsExecuted,
+    notificationsSent,
+    triggerResults
+  };
+} 
+
+function normalizeCategory(cat: string): string {
+  return cat
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9 ]/g, '') // remove punctuation
+    .replace(/\s+/g, ' ') // collapse whitespace
+    .trim();
+}

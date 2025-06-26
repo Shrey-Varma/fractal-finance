@@ -703,7 +703,7 @@ export default function CreateAutomationPage() {
     );
   };
 
-    const renderTriggerBlock = (trigger: TriggerBlock) => {
+  function renderTriggerBlock(trigger: TriggerBlock) {
     const isExpanded = expandedBlocks.has(trigger.id);
     const summary = getBlockSummary(trigger, 'trigger');
     
@@ -766,11 +766,14 @@ export default function CreateAutomationPage() {
                 value={trigger.type}
                 onSave={(value) => updateTrigger(trigger.id, 'type', value)}
                 type="select"
-                options={['scheduled', 'new_transaction', 'income_received', 'balance_threshold']}
+                options={['scheduled', 'new_transaction', 'income_received', 'balance_threshold', 'now']}
                 placeholder="Select trigger type"
               />
             </div>
-            
+
+            {/* Only show other fields if not 'now' trigger */}
+            {trigger.type !== 'now' && (
+              <>
             <div className="flex items-center">
               <span className="text-sm font-medium mr-2">Account:</span>
               <EditableField
@@ -794,7 +797,6 @@ export default function CreateAutomationPage() {
                     placeholder="Select frequency"
                   />
                 </div>
-                
                 {trigger.schedule?.frequency === 'weekly' && (
                   <div className="flex items-center">
                     <span className="text-sm font-medium mr-2">Day:</span>
@@ -807,7 +809,6 @@ export default function CreateAutomationPage() {
                     />
                   </div>
                 )}
-
                 {trigger.schedule?.frequency === 'monthly' && (
                   <div className="flex items-center">
                     <span className="text-sm font-medium mr-2">Day of Month:</span>
@@ -819,7 +820,6 @@ export default function CreateAutomationPage() {
                     />
                   </div>
                 )}
-
                 {trigger.schedule?.frequency === 'once' && (
                   <div className="flex items-center">
                     <span className="text-sm font-medium mr-2">Date:</span>
@@ -831,7 +831,6 @@ export default function CreateAutomationPage() {
                     />
                   </div>
                 )}
-
                 <div className="flex items-center">
                   <span className="text-sm font-medium mr-2">Time:</span>
                   <EditableField
@@ -855,7 +854,6 @@ export default function CreateAutomationPage() {
                     placeholder="Select operator"
                   />
                 </div>
-                
                 <div className="flex items-center">
                   <span className="text-sm font-medium mr-2">Amount $:</span>
                   <EditableField
@@ -867,12 +865,20 @@ export default function CreateAutomationPage() {
                 </div>
               </>
             )}
+              </>
+            )}
+
+            {trigger.type === 'now' && (
+              <div className="text-yellow-300 text-xs mt-2">
+                <span>⚡ This is a test-only trigger. When you save, it will immediately check all conditions and perform the action if conditions are met.</span>
+              </div>
+            )}
             </motion.div>
           )}
         </AnimatePresence>
       </motion.div>
     );
-  };
+  }
 
   const renderCriteriaBlock = (criteria: CriteriaBlock) => {
     const isExpanded = expandedBlocks.has(criteria.id);

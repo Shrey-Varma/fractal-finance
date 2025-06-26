@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
-import { processBalanceThresholds } from '@/utils/balanceTriggerEngine'
+import { processBalanceThresholds } from '@/engine/trigger-engine'
 
 export const runtime = "nodejs"
 

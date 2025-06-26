@@ -10,7 +10,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["new_transaction", "income_received", "balance_threshold", "scheduled"]
+          "enum": ["new_transaction", "income_received", "balance_threshold", "scheduled", "now"]
         },
         "account": {
           "type": "string"
