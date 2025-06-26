@@ -168,7 +168,7 @@ export default function DashboardSidebar({ userProfile }: DashboardSidebarProps)
       if (error) {
         console.error('Error signing out:', error);
       } else {
-        router.push('/login');
+        router.push('/');
       }
     } catch (error) {
       console.error('Unexpected error during sign out:', error);

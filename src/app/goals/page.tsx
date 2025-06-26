@@ -186,7 +186,7 @@ export default function GoalsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Financial Goals</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Financial Goals</h1>
             <p className="text-gray-600 mt-2">Organize and track your automation goals</p>
           </div>
           <Link 
@@ -241,22 +241,22 @@ export default function GoalsPage() {
                       <div className="flex items-center">
                         <span className="text-2xl mr-3">{getGoalIcon(goal.name)}</span>
                         <h3 className="text-lg font-semibold">{goal.name}</h3>
-                      </div>
+              </div>
                       <span className="text-xs opacity-75">
                         {goal.totalAutomations} automation{goal.totalAutomations !== 1 ? 's' : ''}
                       </span>
-                    </div>
-                    
+            </div>
+            
                     <div className="space-y-3">
                       <div className="flex justify-between text-sm">
                         <span>Active Automations</span>
                         <span className="font-semibold">{goal.activeAutomations}</span>
-                      </div>
+              </div>
                       <div className="flex justify-between text-sm">
                         <span>Total Automations</span>
                         <span className="font-semibold">{goal.totalAutomations}</span>
-                      </div>
-                      
+            </div>
+            
                       {/* Progress bar */}
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
@@ -267,7 +267,7 @@ export default function GoalsPage() {
                           }}
                         ></div>
                       </div>
-                    </div>
+              </div>
                   </motion.div>
                 ))}
               </motion.div>
@@ -298,9 +298,9 @@ export default function GoalsPage() {
                           <p className="text-sm text-gray-600">
                             {goals.find(g => g.name === selectedGoal)?.totalAutomations} automation(s) in this goal
                           </p>
-                        </div>
-                      </div>
-                    </div>
+            </div>
+          </div>
+        </div>
                   </div>
 
                   <div className="overflow-x-auto">
