@@ -9,6 +9,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 interface Automation {
   id: string;
   name: string;
+  goal: string | null;
   start_date: string | null;
   end_date: string | null;
   is_active: boolean;
@@ -127,6 +128,7 @@ export default function AutomationsPage() {
     const automationData = {
       id: automation.id,
       name: automation.name,
+      goal: automation.goal,
       schema: automation.schema,
       start_date: automation.start_date,
       end_date: automation.end_date,
@@ -229,6 +231,9 @@ export default function AutomationsPage() {
                       Name
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Goal
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -259,6 +264,17 @@ export default function AutomationsPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
                           {automation.name}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">
+                          {automation.goal ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              🎯 {automation.goal}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 italic">No goal</span>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

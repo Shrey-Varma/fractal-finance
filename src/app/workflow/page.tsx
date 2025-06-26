@@ -211,7 +211,10 @@ export default function WorkflowPage() {
         <h1 className="text-2xl font-bold">Fractal - Workflow Automation</h1>
         <Link 
           href="/home" 
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
+          className="text-white px-4 py-2 rounded transition-colors"
+          style={{ backgroundColor: '#1c4587' }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#153a73'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1c4587'}
         >
           Simple Mode
         </Link>

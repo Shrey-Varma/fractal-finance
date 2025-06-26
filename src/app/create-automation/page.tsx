@@ -88,12 +88,18 @@ export default function CreateAutomationPage() {
   const [loadingAccounts, setLoadingAccounts] = useState(true);
   const [showTestModal, setShowTestModal] = useState(false);
   const [testDescription, setTestDescription] = useState('');
+  const [showSaveSuccessModal, setShowSaveSuccessModal] = useState(false);
+  const [saveSuccessData, setSaveSuccessData] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initialMessageProcessedRef = useRef(false);
   const searchParams = useSearchParams();
   const router = useRouter();
   const [automationName, setAutomationName] = useState('');
   const [editingAutomationId, setEditingAutomationId] = useState<string | null>(null);
+  const [selectedGoal, setSelectedGoal] = useState('');
+  const [availableGoals, setAvailableGoals] = useState<string[]>([]);
+  const [showNewGoalInput, setShowNewGoalInput] = useState(false);
+  const [newGoalName, setNewGoalName] = useState('');
 
   const fetchUserAccounts = async () => {
     try {
@@ -118,8 +124,26 @@ export default function CreateAutomationPage() {
     }
   };
 
+  const fetchAvailableGoals = async () => {
+    try {
+      const response = await fetch('/api/get-goals');
+      const data = await response.json();
+      
+      if (response.ok && data.goals) {
+        setAvailableGoals(data.goals);
+      } else {
+        console.error('Failed to fetch goals:', data.error);
+        setAvailableGoals([]);
+      }
+    } catch (error) {
+      console.error('Error fetching goals:', error);
+      setAvailableGoals([]);
+    }
+  };
+
   useEffect(() => {
     fetchUserAccounts();
+    fetchAvailableGoals();
     
     const initialMessage = searchParams.get('initial');
     const editData = searchParams.get('edit');
@@ -130,6 +154,7 @@ export default function CreateAutomationPage() {
         const automationData = JSON.parse(decodeURIComponent(editData));
         setEditingAutomationId(automationData.id);
         setAutomationName(automationData.name || '');
+        setSelectedGoal(automationData.goal || '');
         
         // Convert the schema to our rule format
         if (automationData.schema) {
@@ -1367,6 +1392,7 @@ export default function CreateAutomationPage() {
           body: JSON.stringify({
             id: editingAutomationId,
             name: nameToSave,
+            goal: selectedGoal || null,
             start_date: currentRule?.tracking_start_date || null,
             end_date: currentRule?.tracking_end_date || null,
             workflow: currentRule, // Save as rule format instead of workflow
@@ -1381,6 +1407,7 @@ export default function CreateAutomationPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: nameToSave,
+            goal: selectedGoal || null,
             start_date: currentRule?.tracking_start_date || null,
             end_date: currentRule?.tracking_end_date || null,
             workflow: currentRule, // Save as rule format instead of workflow
@@ -1392,72 +1419,16 @@ export default function CreateAutomationPage() {
 
       const data = await response.json();
       if (response.ok) {
-        let message = successMessage;
+        // Prepare data for the success modal
+        const modalData = {
+          isUpdate: !!editingAutomationId,
+          automationName: nameToSave,
+          goal: selectedGoal,
+          immediateCheck: data.immediateCheck
+        };
         
-        // Check if immediate trigger execution was performed
-        if (data.immediateCheck?.executed) {
-          const immediateCheck = data.immediateCheck;
-          
-          // Handle legacy format (for old balance threshold only responses)
-          if (immediateCheck.results) {
-            const { automationsFound, accountsFound, triggersExecuted, notificationsSent } = immediateCheck.results;
-            message += `\n\n🎯 Balance Threshold Check Executed:
-• Found ${automationsFound} automation(s)
-• Checked ${accountsFound} account(s)
-• Executed ${triggersExecuted} trigger(s)
-• Sent ${notificationsSent} notification(s)`;
-            
-            if (notificationsSent > 0) {
-              message += '\n\n📱 SMS notifications have been sent to your phone!';
-            }
-          }
-          // Handle new combined format
-          else {
-            message += `\n\n🚀 Immediate Trigger Execution Results:`;
-            
-            // Balance threshold results
-            if (immediateCheck.balanceThreshold) {
-              const bt = immediateCheck.balanceThreshold;
-              message += `\n\n⚖️ Balance Threshold Check:
-• Found ${bt.automationsFound} automation(s)
-• Checked ${bt.accountsFound} account(s)
-• Executed ${bt.triggersExecuted} trigger(s)
-• Sent ${bt.notificationsSent} notification(s)`;
-            }
-            
-            // New transaction results
-            if (immediateCheck.newTransaction) {
-              const nt = immediateCheck.newTransaction;
-              message += `\n\n🆕 New Transaction Check:
-• Found ${nt.automationsFound} automation(s)
-• Checked ${nt.accountsFound} account(s)
-• Executed ${nt.triggersExecuted} trigger(s)
-• Sent ${nt.notificationsSent} notification(s)`;
-            }
-            
-            // Summary
-            if (immediateCheck.totalExecutions > 0) {
-              message += `\n\n📊 Total Summary:
-• ${immediateCheck.totalExecutions} trigger(s) executed
-• ${immediateCheck.totalNotifications} notification(s) sent`;
-              
-              if (immediateCheck.totalNotifications > 0) {
-                message += '\n\n📱 SMS notifications have been sent to your phone!';
-              }
-            } else {
-              message += '\n\n💡 No triggers were executed (conditions not met or no recent data)';
-            }
-          }
-        } else if (data.immediateCheck?.executed === false) {
-          message += '\n\n⚠️ Immediate trigger execution failed but automation was saved successfully.';
-          if (data.immediateCheck?.error) {
-            message += `\nError: ${data.immediateCheck.error}`;
-          }
-        }
-        
-        alert(message);
-        // Navigate back to automations list
-        router.push('/automations');
+        setSaveSuccessData(modalData);
+        setShowSaveSuccessModal(true);
       } else {
         alert(`Failed to save automation: ${data.error}`);
       }
@@ -1589,6 +1560,89 @@ export default function CreateAutomationPage() {
                       className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200"
                       style={{ '--tw-ring-color': '#1c4587' } as React.CSSProperties & { [key: string]: string }}
                     />
+                  </div>
+
+                  {/* Goal Assignment */}
+                  <div className="flex flex-col">
+                    <label className="text-xs font-medium text-gray-500 mb-1">Goal</label>
+                    <div className="flex items-center space-x-2">
+                      {!showNewGoalInput ? (
+                        <>
+                          <select
+                            value={selectedGoal}
+                            onChange={(e) => setSelectedGoal(e.target.value)}
+                            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 flex-1"
+                            style={{ '--tw-ring-color': '#1c4587' } as React.CSSProperties & { [key: string]: string }}
+                          >
+                            <option value="">No Goal</option>
+                            {availableGoals.map(goal => (
+                              <option key={goal} value={goal}>{goal}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => setShowNewGoalInput(true)}
+                            className="px-2 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors text-sm"
+                            title="Create new goal"
+                          >
+                            +
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <input
+                            type="text"
+                            value={newGoalName}
+                            onChange={(e) => setNewGoalName(e.target.value)}
+                            placeholder="Enter new goal name"
+                            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 flex-1"
+                            style={{ '--tw-ring-color': '#1c4587' } as React.CSSProperties & { [key: string]: string }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && newGoalName.trim()) {
+                                const trimmedGoal = newGoalName.trim();
+                                if (!availableGoals.includes(trimmedGoal)) {
+                                  setAvailableGoals([...availableGoals, trimmedGoal]);
+                                }
+                                setSelectedGoal(trimmedGoal);
+                                setNewGoalName('');
+                                setShowNewGoalInput(false);
+                              } else if (e.key === 'Escape') {
+                                setNewGoalName('');
+                                setShowNewGoalInput(false);
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (newGoalName.trim()) {
+                                const trimmedGoal = newGoalName.trim();
+                                if (!availableGoals.includes(trimmedGoal)) {
+                                  setAvailableGoals([...availableGoals, trimmedGoal]);
+                                }
+                                setSelectedGoal(trimmedGoal);
+                                setNewGoalName('');
+                                setShowNewGoalInput(false);
+                              }
+                            }}
+                            className="px-2 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors text-sm"
+                            disabled={!newGoalName.trim()}
+                          >
+                            ✓
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNewGoalName('');
+                              setShowNewGoalInput(false);
+                            }}
+                            className="px-2 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors text-sm"
+                          >
+                            ✗
+                          </button>
+                        </>
+                      )}
+                    </div>
             </div>
 
                   {/* Action Buttons */}
@@ -1835,6 +1889,289 @@ export default function CreateAutomationPage() {
           </div>
 
       </div>
+
+      {/* Save Success Modal - Outside DashboardLayout */}
+      {showSaveSuccessModal && saveSuccessData && (
+        <div 
+          className="fixed inset-0 flex items-center justify-center z-[9999] p-4"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)' }}
+        >
+          <motion.div 
+            initial={{ scale: 0.8, opacity: 0, y: 50 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.8, opacity: 0, y: 50 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden shadow-2xl border-0"
+          >
+            {/* Success Header with Animation */}
+            <div 
+              className="relative px-8 py-8 text-white overflow-hidden"
+              style={{ 
+                background: 'linear-gradient(135deg, #10B981 0%, #059669 50%, #047857 100%)'
+              }}
+            >
+              {/* Animated background shapes */}
+              <div className="absolute inset-0 overflow-hidden">
+                <motion.div
+                  animate={{ 
+                    rotate: [0, 360],
+                    scale: [1, 1.2, 1]
+                  }}
+                  transition={{ 
+                    duration: 10,
+                    repeat: Infinity,
+                    ease: "linear"
+                  }}
+                  className="absolute -top-4 -right-4 w-24 h-24 bg-white opacity-10 rounded-full"
+                />
+                <motion.div
+                  animate={{ 
+                    rotate: [360, 0],
+                    scale: [1.2, 1, 1.2]
+                  }}
+                  transition={{ 
+                    duration: 8,
+                    repeat: Infinity,
+                    ease: "linear"
+                  }}
+                  className="absolute -bottom-6 -left-6 w-32 h-32 bg-white opacity-5 rounded-full"
+                />
+              </div>
+
+              <div className="relative z-10 text-center">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ 
+                    delay: 0.2,
+                    type: "spring",
+                    stiffness: 200,
+                    damping: 10
+                  }}
+                  className="w-20 h-20 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4"
+                >
+                  <motion.span 
+                    initial={{ rotate: -180, opacity: 0 }}
+                    animate={{ rotate: 0, opacity: 1 }}
+                    transition={{ delay: 0.4, duration: 0.6 }}
+                    className="text-4xl"
+                  >
+                    ✅
+                  </motion.span>
+                </motion.div>
+                
+                <motion.h2 
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.3, duration: 0.5 }}
+                  className="text-2xl font-bold mb-2"
+                >
+                  {saveSuccessData.isUpdate ? 'Automation Updated!' : 'Automation Created!'}
+                </motion.h2>
+                
+                <motion.p 
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.4, duration: 0.5 }}
+                  className="text-green-100 text-lg"
+                >
+                  "{saveSuccessData.automationName}" is now {saveSuccessData.isUpdate ? 'updated' : 'active'}
+                </motion.p>
+
+                {saveSuccessData.goal && (
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.5, duration: 0.5 }}
+                    className="mt-3"
+                  >
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white text-green-700 shadow-sm">
+                      🎯 Goal: {saveSuccessData.goal}
+                    </span>
+                  </motion.div>
+                )}
+              </div>
+            </div>
+
+            {/* Immediate Execution Results */}
+            {saveSuccessData.immediateCheck?.executed && (
+              <motion.div 
+                initial={{ y: 30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.6, duration: 0.5 }}
+                className="px-8 py-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-t border-blue-100"
+              >
+                <div className="flex items-center mb-4">
+                  <motion.div
+                    animate={{ rotate: [0, 360] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center mr-3"
+                    style={{ backgroundColor: '#1c4587' }}
+                  >
+                    <span className="text-white text-sm">⚡</span>
+                  </motion.div>
+                  <h3 className="text-lg font-semibold text-gray-900">Immediate Execution Results</h3>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Balance Threshold Results */}
+                  {saveSuccessData.immediateCheck.balanceThreshold && (
+                    <motion.div 
+                      initial={{ x: -20, opacity: 0 }}
+                      animate={{ x: 0, opacity: 1 }}
+                      transition={{ delay: 0.8, duration: 0.4 }}
+                      className="bg-white rounded-lg p-4 border border-blue-200"
+                    >
+                      <div className="flex items-center mb-3">
+                        <span className="text-blue-600 text-lg mr-2">⚖️</span>
+                        <h4 className="font-medium text-blue-900">Balance Threshold Check</h4>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="text-gray-600">
+                          <span className="font-medium">Automations:</span> {saveSuccessData.immediateCheck.balanceThreshold.automationsFound}
+                        </div>
+                        <div className="text-gray-600">
+                          <span className="font-medium">Accounts:</span> {saveSuccessData.immediateCheck.balanceThreshold.accountsFound}
+                        </div>
+                        <div className="text-gray-600">
+                          <span className="font-medium">Triggers:</span> {saveSuccessData.immediateCheck.balanceThreshold.triggersExecuted}
+                        </div>
+                        <div className="text-gray-600">
+                          <span className="font-medium">Notifications:</span> {saveSuccessData.immediateCheck.balanceThreshold.notificationsSent}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* New Transaction Results */}
+                  {saveSuccessData.immediateCheck.newTransaction && (
+                    <motion.div 
+                      initial={{ x: -20, opacity: 0 }}
+                      animate={{ x: 0, opacity: 1 }}
+                      transition={{ delay: 0.9, duration: 0.4 }}
+                      className="bg-white rounded-lg p-4 border border-green-200"
+                    >
+                      <div className="flex items-center mb-3">
+                        <span className="text-green-600 text-lg mr-2">🆕</span>
+                        <h4 className="font-medium text-green-900">New Transaction Check</h4>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="text-gray-600">
+                          <span className="font-medium">Automations:</span> {saveSuccessData.immediateCheck.newTransaction.automationsFound}
+                        </div>
+                        <div className="text-gray-600">
+                          <span className="font-medium">Accounts:</span> {saveSuccessData.immediateCheck.newTransaction.accountsFound}
+                        </div>
+                        <div className="text-gray-600">
+                          <span className="font-medium">Triggers:</span> {saveSuccessData.immediateCheck.newTransaction.triggersExecuted}
+                        </div>
+                        <div className="text-gray-600">
+                          <span className="font-medium">Notifications:</span> {saveSuccessData.immediateCheck.newTransaction.notificationsSent}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Summary */}
+                  {saveSuccessData.immediateCheck.totalExecutions > 0 ? (
+                    <motion.div 
+                      initial={{ y: 20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 1.0, duration: 0.4 }}
+                      className="bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg p-4"
+                    >
+                      <div className="text-center">
+                        <div className="text-lg font-semibold mb-1">
+                          🎉 {saveSuccessData.immediateCheck.totalExecutions} trigger(s) executed successfully!
+                        </div>
+                        {saveSuccessData.immediateCheck.totalNotifications > 0 && (
+                          <div className="text-green-100">
+                            📱 {saveSuccessData.immediateCheck.totalNotifications} SMS notification(s) sent to your phone
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div 
+                      initial={{ y: 20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 1.0, duration: 0.4 }}
+                      className="bg-gray-100 rounded-lg p-4 text-center"
+                    >
+                      <div className="text-gray-600">
+                        💡 No triggers were executed (conditions not met or no recent data)
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Error handling for failed immediate execution */}
+            {saveSuccessData.immediateCheck?.executed === false && (
+              <motion.div 
+                initial={{ y: 30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.6, duration: 0.5 }}
+                className="px-8 py-6 bg-yellow-50 border-t border-yellow-200"
+              >
+                <div className="flex items-center">
+                  <span className="text-yellow-600 text-lg mr-3">⚠️</span>
+                  <div>
+                    <h3 className="font-medium text-yellow-900">Automation saved with minor issue</h3>
+                    <p className="text-yellow-700 text-sm mt-1">
+                      Immediate trigger execution failed, but your automation was saved successfully.
+                    </p>
+                    {saveSuccessData.immediateCheck?.error && (
+                      <p className="text-yellow-600 text-xs mt-2">
+                        Error: {saveSuccessData.immediateCheck.error}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Action Buttons */}
+            <motion.div 
+              initial={{ y: 30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.7, duration: 0.5 }}
+              className="px-8 py-6 bg-gray-50 border-t border-gray-200"
+            >
+              <div className="flex justify-center space-x-4">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    setShowSaveSuccessModal(false);
+                    setSaveSuccessData(null);
+                    router.push('/automations');
+                  }}
+                  className="px-8 py-3 text-white rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+                  style={{ backgroundColor: '#1c4587' }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#153a73'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1c4587'}
+                >
+                  View All Automations
+                </motion.button>
+                
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    setShowSaveSuccessModal(false);
+                    setSaveSuccessData(null);
+                  }}
+                  className="px-6 py-3 text-gray-700 bg-white border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Create Another
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Test Workflow Modal - Outside DashboardLayout */}
       {showTestModal && (

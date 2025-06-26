@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 
 export async function PUT(req: NextRequest) {
   try {
-    const { id, name, start_date, end_date, workflow, is_active = true } = await req.json();
+    const { id, name, goal, start_date, end_date, workflow, is_active = true } = await req.json();
 
     if (!id || !workflow) {
       return NextResponse.json({ error: "Missing automation ID or workflow schema" }, { status: 400 });
@@ -44,6 +44,7 @@ export async function PUT(req: NextRequest) {
 
     const updatePayload = {
       name: name || `Automation ${new Date().toISOString()}`,
+      goal: goal || null,
       start_date: normalizeDate(start_date, null, true), // Pass true for isStartDate
       end_date: normalizeDate(end_date, start_date),
       is_active,

@@ -26,18 +26,19 @@ body {
 }
 
 .btn-primary:hover {
-  background-color: #799da7;
+  background-color: #153a73;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
   transform: translateY(-2px);
 }
 
 .btn-secondary {
   border: 1px solid #d1d5db;
-  color: #b0d5cd;
+  color: #374151;
   font-weight: 600;
   padding: 12px 24px;
   border-radius: 8px;
   transition: all 0.2s;
+  background-color: white;
 }
 
 .btn-secondary:hover {
@@ -63,7 +64,7 @@ body {
 
 /* Gradient backgrounds */
 .gradient-hero {
-  background: linear-gradient(135deg, #1c4587 0%, #ffffff 50%, #f0f4ff 100%);
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 30%, #cbd5e1 100%);
 }
 
 /* Custom animations */

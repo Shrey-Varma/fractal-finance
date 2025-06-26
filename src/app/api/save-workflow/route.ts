@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, start_date, end_date, workflow, is_active = true } = await req.json();
+    const { name, goal, start_date, end_date, workflow, is_active = true } = await req.json();
 
     if (!workflow) {
       return NextResponse.json({ error: "Missing workflow schema" }, { status: 400 });
@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
     const insertPayload = {
       user_id: userData.user.id,
       name: name || `Automation ${new Date().toISOString()}`,
+      goal: goal || null,
       start_date: normalizeDate(start_date, null, true), // Pass true for isStartDate
       end_date: normalizeDate(end_date, start_date),
       is_active,
