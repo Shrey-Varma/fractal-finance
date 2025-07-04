@@ -11,7 +11,6 @@ export async function findMatchingCategories(
   console.log('🤖 [CATEGORY_AI] Available categories count:', availableCategories.length)
   
   // Note: AI can only match against categories that actually exist in the user's transaction data
-  // If the user asks for "food" but only has "FOOD_AND_DRINK" transactions, that's all we can match
 
   if (availableCategories.length === 0) {
     console.log('⚠️ [CATEGORY_AI] No categories available, using direct match')
