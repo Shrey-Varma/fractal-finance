@@ -1,11 +1,15 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Chart, ChartCanvas } from 'react-financial-charts';
-import { XAxis, YAxis } from 'react-financial-charts';
-import { AreaSeries } from 'react-financial-charts';
-import { scaleTime } from 'd3-scale';
-import { timeWeek } from 'd3-time';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ResponsiveContainer
+} from 'recharts';
 import { format } from 'd3-format';
 import { timeFormat } from 'd3-time-format';
 
@@ -72,7 +76,9 @@ export default function SpendingInsights() {
     
     spendingTransactions.forEach(transaction => {
       const date = new Date(transaction.date);
-      const weekStart = timeWeek.floor(date);
+      // Get start of week (Sunday)
+      const weekStart = new Date(date);
+      weekStart.setDate(date.getDate() - date.getDay());
       const weekKey = weekStart.toISOString().split('T')[0];
       
       const currentSpending = weeklyData.get(weekKey) || 0;
@@ -93,7 +99,7 @@ export default function SpendingInsights() {
 
   const chartData = weeklySpendingData.map(d => ({
     date: d.date,
-    value: d.spending,
+    week: d.week,
     spending: d.spending
   }));
 
@@ -102,44 +108,11 @@ export default function SpendingInsights() {
   const avgWeeklySpending = weeklySpendingData.length > 0 ? totalSpending / weeklySpendingData.length : 0;
 
   if (loading) {
-    return (
-      <div className="animate-pulse">
-        <div className="h-6 bg-gray-300 rounded w-48 mb-4"></div>
-        <div className="h-64 bg-gray-300 rounded mb-4"></div>
-        <div className="flex space-x-4">
-          <div className="h-4 bg-gray-300 rounded w-32"></div>
-          <div className="h-4 bg-gray-300 rounded w-32"></div>
-        </div>
-      </div>
-    );
+    return <div>Loading...</div>;
   }
 
   if (error) {
-    return (
-      <div className="text-center py-8">
-        <span className="text-4xl mb-4 block">📊</span>
-        <p className="text-gray-600 mb-4">{error}</p>
-        <button
-          onClick={fetchTransactions}
-          className="text-white px-4 py-2 rounded-lg font-medium"
-          style={{ backgroundColor: '#1c4587' }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#153a73'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1c4587'}
-        >
-          Try Again
-        </button>
-      </div>
-    );
-  }
-
-  if (chartData.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <span className="text-4xl mb-4 block">📈</span>
-        <p className="text-gray-600 mb-2">No spending data available</p>
-        <p className="text-sm text-gray-500">Make some transactions to see your spending insights</p>
-      </div>
-    );
+    return <div className="text-red-500">{error}</div>;
   }
 
   return (
@@ -179,39 +152,21 @@ export default function SpendingInsights() {
 
       {/* Chart */}
       <div className="h-64 w-full">
-        <ChartCanvas
-          height={256}
-          width={800}
-          ratio={1}
-          margin={{ left: 60, right: 60, top: 20, bottom: 40 }}
-          data={chartData}
-          seriesName="Weekly Spending"
-          xScale={scaleTime()}
-          xAccessor={(d: any) => d.date}
-          displayXAccessor={(d: any) => d.date}
-        >
-          <Chart id={1} yExtents={(d: any) => d.spending}>
-            <XAxis 
-              axisAt="bottom" 
-              orient="bottom" 
-              tickFormat={timeFormat('%b %d')}
-              stroke="#6b7280"
-            />
-            <YAxis 
-              axisAt="left" 
-              orient="left" 
-              tickFormat={formatCurrency}
-              stroke="#6b7280"
-            />
-            <AreaSeries
-              yAccessor={(d: any) => d.spending}
-              fill="#1c4587"
-              fillOpacity={0.3}
-              stroke="#1c4587"
-              strokeWidth={2}
-            />
-          </Chart>
-        </ChartCanvas>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={chartData} margin={{ top: 20, right: 60, left: 60, bottom: 40 }}>
+            <defs>
+              <linearGradient id="spendingGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#1c4587" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#1c4587" stopOpacity={0.1}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="week" stroke="#6b7280" />
+            <YAxis stroke="#6b7280" tickFormatter={formatCurrency} />
+            <Tooltip formatter={(value: number) => formatCurrency(value)} labelFormatter={label => `Week of ${label}`}/>
+            <Area type="monotone" dataKey="spending" stroke="#1c4587" fillOpacity={1} fill="url(#spendingGradient)" strokeWidth={2} />
+          </AreaChart>
+        </ResponsiveContainer>
       </div>
 
       {/* Refresh button */}
