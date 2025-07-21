@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* Font classes */
+.font-dm-sans {
+  font-family: var(--font-dm-sans), -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.font-inter {
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
 /* Custom styles for the landing page */
 html {
   scroll-behavior: smooth;
@@ -207,6 +216,24 @@ body {
 .animate-gradient {
   animation: gradient-shift 8s ease infinite;
   background-size: 200% 200%;
+}
+
+/* Aurora background animation */
+@keyframes aurora {
+  from {
+    background-position:
+      50% 50%,
+      50% 50%;
+  }
+  to {
+    background-position:
+      350% 50%,
+      350% 50%;
+  }
+}
+
+.animate-aurora {
+  animation: aurora 60s linear infinite;
 }
 
 /* Backdrop blur support */
