@@ -50,7 +50,7 @@ function useWaitlistCount() {
 function HeroSection() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
-  const [waitlistCount, setWaitlistCount] = useState<number | null>(null)
+  const [waitlistCount, setWaitlistCount] = useState<number | null>(94)
   const [submitted, setSubmitted] = useState(false)
 
   const supabase = createClient()

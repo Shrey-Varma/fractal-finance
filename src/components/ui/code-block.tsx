@@ -1,105 +1,8 @@
 "use client";
 import React from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { IconCheck, IconCopy } from "@tabler/icons-react";
-
-// VS Code-like dark theme with navy accent
-const customDarkTheme = {
-  'code[class*="language-"]': {
-    color: '#d4d4d4',
-    background: 'none',
-    fontFamily: '"Fira Code", "Cascadia Code", "JetBrains Mono", Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace',
-    fontSize: '14px',
-    textAlign: 'left',
-    whiteSpace: 'pre',
-    wordSpacing: 'normal',
-    wordBreak: 'normal',
-    wordWrap: 'normal',
-    lineHeight: '1.6',
-    tabSize: '2',
-    hyphens: 'none',
-  },
-  'pre[class*="language-"]': {
-    color: '#d4d4d4',
-    background: '#1e1e1e',
-    fontFamily: '"Fira Code", "Cascadia Code", "JetBrains Mono", Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace',
-    fontSize: '14px',
-    textAlign: 'left',
-    whiteSpace: 'pre',
-    wordSpacing: 'normal',
-    wordBreak: 'normal',
-    wordWrap: 'normal',
-    lineHeight: '1.6',
-    tabSize: '2',
-    hyphens: 'none',
-    padding: '1rem',
-    margin: '0',
-    overflow: 'auto',
-    borderRadius: '0',
-  },
-  'token.comment': {
-    color: '#6a9955',
-    fontStyle: 'italic',
-  },
-  'token.prolog': {
-    color: '#6a9955',
-  },
-  'token.doctype': {
-    color: '#6a9955',
-  },
-  'token.cdata': {
-    color: '#6a9955',
-  },
-  'token.string': {
-    color: '#ce9178',
-  },
-  'token.attr-value': {
-    color: '#ce9178',
-  },
-  'token.number': {
-    color: '#b5cea8',
-  },
-  'token.boolean': {
-    color: '#569cd6',
-  },
-  'token.null': {
-    color: '#569cd6',
-  },
-  'token.keyword': {
-    color: '#569cd6',
-  },
-  'token.operator': {
-    color: '#d4d4d4',
-  },
-  'token.property': {
-    color: '#9cdcfe',
-  },
-  'token.function': {
-    color: '#dcdcaa',
-  },
-  'token.punctuation': {
-    color: '#d4d4d4',
-  },
-  'token.selector': {
-    color: '#d7ba7d',
-  },
-  'token.important': {
-    color: '#569cd6',
-    fontWeight: 'bold',
-  },
-  'token.atrule': {
-    color: '#c586c0',
-  },
-  'token.regex': {
-    color: '#d16969',
-  },
-  'token.entity': {
-    color: '#4ec9b0',
-  },
-  'token.url': {
-    color: '#4ec9b0',
-  },
-};
 
 type CodeBlockProps = {
   code: string;
@@ -141,7 +44,7 @@ export function CodeBlock({ code, language = "json", className }: CodeBlockProps
       </div>
       <SyntaxHighlighter
         language={language}
-        style={customDarkTheme}
+        style={vscDarkPlus}
         showLineNumbers={true}
         lineNumberStyle={{
           color: '#6e7681',

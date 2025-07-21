@@ -92,7 +92,7 @@ export async function GET() {
         const formattedTransactions = (allTransactions || []).map(transaction => ({
             transaction_id: transaction.transaction_id,
             account_id: transaction.account_id,
-            account_name: transaction.accounts.official_name || transaction.accounts.name,
+            account_name: (transaction.accounts as any)?.official_name || (transaction.accounts as any)?.name,
             name: transaction.name,
             merchant_name: transaction.merchant_name,
             amount: transaction.amount,
