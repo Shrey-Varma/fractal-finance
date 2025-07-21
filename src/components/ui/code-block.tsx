@@ -1,7 +1,6 @@
 "use client";
 import React from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { dark } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import { IconCheck, IconCopy } from "@tabler/icons-react";
 
 type CodeBlockProps = {
@@ -44,31 +43,15 @@ export function CodeBlock({ code, language = "json", className }: CodeBlockProps
       </div>
       <SyntaxHighlighter
         language={language}
-        style={dark}
         showLineNumbers={true}
-        lineNumberStyle={{
-          color: '#6e7681',
-          backgroundColor: '#262626',
-          paddingLeft: '1rem',
-          paddingRight: '1rem',
-          borderRight: '1px solid #404040',
-          minWidth: '3rem',
-          textAlign: 'right',
-          userSelect: 'none',
-          fontSize: '13px',
-        }}
         customStyle={{
           margin: 0,
           background: '#1e1e1e',
+          color: '#d4d4d4',
           fontSize: '14px',
           lineHeight: '1.6',
-          padding: '1rem 1rem 1rem 0',
-        }}
-        codeTagProps={{
-          style: {
-            fontFamily: '"Fira Code", "Cascadia Code", "JetBrains Mono", Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace',
-            fontSize: '14px',
-          }
+          padding: '1rem',
+          fontFamily: 'Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace',
         }}
       >
         {code}
