@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { dark } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import { IconCheck, IconCopy } from "@tabler/icons-react";
 
 type CodeBlockProps = {
@@ -44,7 +44,7 @@ export function CodeBlock({ code, language = "json", className }: CodeBlockProps
       </div>
       <SyntaxHighlighter
         language={language}
-        style={vscDarkPlus}
+        style={dark}
         showLineNumbers={true}
         lineNumberStyle={{
           color: '#6e7681',
