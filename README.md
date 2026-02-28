@@ -23,7 +23,7 @@
 
 ## Overview
 
-Fractal Finance is an AI-native personal finance application that solves the hardest problem in consumer fintech: making real financial data actionable in real time. By combining Plaid's bank-linking API with a webhook-driven automation engine and BERT-powered spending analysis, the platform lets users define rules like *"alert me when my checking balance drops below $500"* or *"flag any transaction over $100 at a restaurant"* — and enforces them in seconds.
+Fractal Finance is an AI-native personal finance application that solves the hardest problem in consumer fintech: making real financial data actionable in real time. By combining Plaid's bank-linking API with a webhook-driven automation engine and BERT-powered spending analysis, the platform lets users define rules like *"alert me when my checking balance drops below $500"* or *"flag any transaction over $100 at a restaurant"* — and enforces them in seconds. 
 
 ### Key Technical Achievements
 
